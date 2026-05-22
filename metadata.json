@@ -1,0 +1,6 @@
+{
+  "name": "Genesis Core",
+  "description": "Unified Dynamics Control & Advanced Gateway Mesh. High-performance landing page coupled with a professional gateway, Nginx proxy, and DDNS simulator.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
