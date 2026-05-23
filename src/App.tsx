@@ -32,7 +32,9 @@ import {
   Layers,
   Activity,
   AlertCircle,
-  ArrowRight
+  AlertTriangle,
+  ArrowRight,
+  BookOpen
 } from 'lucide-react';
 import { LucideIcon } from './components/LucideIcon';
 import { AuthScreen } from './components/AuthScreen';
@@ -91,6 +93,26 @@ const getRelativeTime = (timestamp: string) => {
   return then.toLocaleDateString();
 };
 
+// Visual resource tracker
+const ResourceTile = ({ label, value, color }: { label: string, value: number, color: string }) => (
+  <div className="bg-zinc-950 p-3 rounded border border-zinc-800">
+    <div className="flex justify-between mb-2">
+      <span className="text-[9px] font-mono uppercase text-zinc-500">{label}</span>
+      <span className={`text-[9px] font-bold`} style={{ color }}>{value}%</span>
+    </div>
+    <div className="h-1 bg-zinc-900 rounded-full overflow-hidden">
+      <motion.div initial={{ width: 0 }} animate={{ width: `${value}%` }} className="h-full" style={{ backgroundColor: color }} />
+    </div>
+  </div>
+);
+
+// Log terminal component
+const LogTerminal = ({ logs }: { logs: string[] }) => (
+  <div className="bg-black/90 rounded-lg p-3 font-mono text-[9px] text-zinc-400 border border-zinc-800 h-24 overflow-y-auto">
+    {logs.map((log, i) => <div key={i} className="mb-0.5 whitespace-nowrap">{log}</div>)}
+  </div>
+);
+
 const TacticalPanel = ({ children, title, footer, className = '' }: { children: React.ReactNode, title?: string, footer?: string, className?: string }) => (
   <div className={`relative bg-zinc-900/40 border border-zinc-800/80 backdrop-blur-md rounded-xl p-6 group transition-all duration-500 shadow-neon hover:shadow-neon-strong ${className}`}>
     <TacticalCorner className="absolute top-2 left-2 text-zinc-700 opacity-50 group-hover:text-sky-500 transition-colors drop-shadow-neon" />
@@ -139,10 +161,19 @@ export default function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [links, setLinks] = useState<SocialLink[]>([]);
   
-  // Admin only configs
+// Admin only configs
   const [nginxConfigs, setNginxConfigs] = useState<NginxConfig[]>([]);
+  const [caddySites, setCaddySites] = useState<{ id: string, name: string, status: 'up' | 'down', load: number }[]>([
+    { id: '1', name: 'main-api.local', status: 'up', load: 12 },
+    { id: '2', name: 'static.cdn.local', status: 'up', load: 5 },
+    { id: '3', name: 'auth.service.local', status: 'down', load: 0 }
+  ]);
   const [ddnsConfigs, setDdnsConfigs] = useState<DDNSConfig[]>([]);
   const [portForwards, setPortForwards] = useState<PortForward[]>([]);
+  
+  // New State for Upgrades
+  const [systemResources, setSystemResources] = useState({ cpu: 15, ram: 42, disk: 68 });
+  const [appLogs, setAppLogs] = useState<string[]>(['[INFO] Genesis Core initialized...', '[INFO] Caddy module loaded...']);
 
   // Page active tabs for Admin View
   const [activeAdminTab, setActiveAdminTab] = useState<'monitor' | 'content' | 'nginx' | 'ddns' | 'ports'>('monitor');
@@ -154,11 +185,15 @@ export default function App() {
   const [isNginxModalOpen, setIsNginxModalOpen] = useState(false);
   const [editingNginx, setEditingNginx] = useState<Partial<NginxConfig> | null>(null);
 
+  const [isCaddyModalOpen, setIsCaddyModalOpen] = useState(false);
+  const [editingCaddy, setEditingCaddy] = useState<{name: string, domain: string} | null>(null);
+
   const [isDdnsModalOpen, setIsDdnsModalOpen] = useState(false);
   const [editingDdns, setEditingDdns] = useState<Partial<DDNSConfig> | null>(null);
 
   const [isPortModalOpen, setIsPortModalOpen] = useState(false);
   const [editingPort, setEditingPort] = useState<Partial<PortForward> | null>(null);
+  const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
 
   // Public Interactive Page States
   const [activePublicTab, setActivePublicTab] = useState<'monitor' | 'nodes' | 'network'>('monitor');
@@ -169,6 +204,12 @@ export default function App() {
     '[SECURITY] SSL DIRECTIVES SECURED VIA CERTBOT ON CLOUDFLARE'
   ]);
   const [pingLatencies, setPingLatencies] = useState<number[]>([]);
+  const [latencyThreshold, setLatencyThreshold] = useState<number>(12);
+
+  const clearTraceHistory = () => {
+    setPingSimulatorLogs([]);
+    setPingLatencies([]);
+  };
 
   const triggerPingTrace = (projectName: string, targetLink: string) => {
     const time = new Date().toLocaleTimeString();
@@ -187,8 +228,9 @@ export default function App() {
     const min = Math.min(...pingLatencies);
     const max = Math.max(...pingLatencies);
     const avg = Math.round(pingLatencies.reduce((a, b) => a + b, 0) / pingLatencies.length);
-    return { min, max, avg };
-  }, [pingLatencies]);
+    const isHigh = pingLatencies.length > 0 && pingLatencies[0] > latencyThreshold;
+    return { min, max, avg, isHigh, last: pingLatencies[0] || 0 };
+  }, [pingLatencies, latencyThreshold]);
 
   // Admin Setting States
   const [settingsUsername, setSettingsUsername] = useState(() => localStorage.getItem('admin_username') || 'admin');
@@ -241,7 +283,9 @@ export default function App() {
       addTile: 'Add Tile',
       activeStatus: 'ACTIVE',
       inactiveStatus: 'INACTIVE',
-      getStarted: 'Get Started'
+      getStarted: 'Get Started',
+      documentation: 'Documentation',
+      docsSubtitle: 'System Overview & Guidelines'
     },
     id: {
       featuredWork: 'Karya Unggulan',
@@ -260,7 +304,9 @@ export default function App() {
       addTile: 'Tambah Tile',
       activeStatus: 'AKTIF',
       inactiveStatus: 'NONAKTIF',
-      getStarted: 'Mulai Sekarang'
+      getStarted: 'Mulai Sekarang',
+      documentation: 'Dokumentasi',
+      docsSubtitle: 'Tinjauan Sistem & Panduan'
     }
   };
 
@@ -734,6 +780,57 @@ export default function App() {
                     exit={{ opacity: 0, y: -10 }}
                     className="space-y-4 font-mono text-xs"
                   >
+                    {/* CADDY MONITORING SECTION */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <ResourceTile label="CPU Load" value={systemResources.cpu} color="#0ea5e9" />
+                      <ResourceTile label="RAM Usage" value={systemResources.ram} color="#8b5cf6" />
+                      <ResourceTile label="Disk Space" value={systemResources.disk} color="#10b981" />
+                    </div>
+
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 shadow-neon">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-xs font-bold text-sky-400 uppercase tracking-widest">Caddy Proxy Telemetry</h3>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => setIsCaddyModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1 bg-sky-500/10 border border-sky-500/30 rounded text-[10px] text-sky-400 hover:bg-sky-500/20">
+                            <Plus size={10} /> Easy Setup
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {caddySites.map(site => (
+                          <div key={site.id} className="bg-zinc-950 p-3 rounded border border-zinc-800">
+                             <div className="flex items-center justify-between mb-2">
+                               <span className="text-[10px] font-bold text-white">{site.name}</span>
+                               <span className={`px-1.5 py-0.5 rounded text-[8px] ${site.status === 'up' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                                 {site.status.toUpperCase()}
+                               </span>
+                             </div>
+                             <div className="flex items-center justify-between text-[8px] text-zinc-500">
+                               <span>Load</span>
+                               <span>{site.load}%</span>
+                             </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+                          <h3 className="text-xs font-bold text-zinc-300 uppercase mb-3">Deployment Checklist</h3>
+                          {['Update Caddy Config', 'Verify SSL Certs', 'Restart Nginx', 'Clear Logs'].map(item => (
+                            <div key={item} className="flex items-center gap-2 text-[10px] text-zinc-400 mb-2">
+                              <input type="checkbox" className="accent-sky-500" /> {item}
+                            </div>
+                          ))}
+                      </div>
+                      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+                          <h3 className="text-xs font-bold text-zinc-300 uppercase mb-3">Logs & Validator</h3>
+                          <LogTerminal logs={appLogs} />
+                          <button className="mt-2 w-full text-[9px] uppercase py-1 bg-zinc-800 hover:bg-zinc-700">Validate Configs</button>
+                      </div>
+                    </div>
+
                     <div>
                       <h2 className="text-sm font-semibold tracking-tight text-white font-mono uppercase">LIVE GATEWAY MONITOR & TUNNEL ROUTING</h2>
                       <p className="text-[11px] text-zinc-500 font-mono text-xs">Secure administrative telemetries, reverse proxy hops & Cloudflare DDNS resolvers</p>
@@ -858,6 +955,25 @@ export default function App() {
                       </div>
 
                       {/* Real-time Latency Stats */}
+                      <div className="flex items-center justify-between px-1 mb-1">
+                         <div className="flex items-center gap-4">
+                            <span className="text-[7px] text-zinc-500 uppercase font-mono tracking-widest">Performance Metrics</span>
+                            <button 
+                              onClick={clearTraceHistory}
+                              className="group/clear flex items-center gap-1 text-[7px] text-zinc-600 hover:text-red-400 transition-colors uppercase font-mono tracking-tighter"
+                              title="Clear Trace History"
+                            >
+                               <Trash2 size={8} className="group-hover/clear:scale-110 transition-transform" />
+                               <span>Clear History</span>
+                            </button>
+                         </div>
+                         {latencyStats.isHigh && (
+                            <div className="flex items-center gap-1 text-orange-500 animate-pulse">
+                               <AlertTriangle size={8} className="drop-shadow-neon" />
+                               <span className="text-[7px] font-mono font-bold uppercase tracking-tighter">High Latency Detected</span>
+                            </div>
+                         )}
+                      </div>
                       <div className="grid grid-cols-3 gap-2 py-1">
                         <div className="bg-zinc-950/50 border border-zinc-800/80 rounded-lg p-2 text-center group/stat hover:border-cyan-500/30 transition-colors">
                            <span className="text-[7px] text-zinc-500 uppercase block font-mono tracking-widest mb-0.5 group-hover/stat:text-cyan-500 transition-colors">Min Latency</span>
@@ -867,7 +983,7 @@ export default function App() {
                            <span className="text-[7px] text-zinc-500 uppercase block font-mono tracking-widest mb-0.5 group-hover/stat:text-emerald-500 transition-colors">Avg Latency</span>
                            <span className="text-xs font-mono font-bold text-emerald-400 drop-shadow-neon">{latencyStats.avg}ms</span>
                         </div>
-                        <div className="bg-zinc-950/50 border border-zinc-800/80 rounded-lg p-2 text-center group/stat hover:border-orange-500/30 transition-colors">
+                        <div className={`bg-zinc-950/50 border rounded-lg p-2 text-center group/stat transition-colors ${latencyStats.isHigh ? 'border-orange-500/40' : 'border-zinc-800/80 hover:border-orange-500/30'}`}>
                            <span className="text-[7px] text-zinc-500 uppercase block font-mono tracking-widest mb-0.5 group-hover/stat:text-orange-500 transition-colors">Max Latency</span>
                            <span className="text-xs font-mono font-bold text-orange-400 drop-shadow-neon">{latencyStats.max}ms</span>
                         </div>
@@ -1451,6 +1567,16 @@ export default function App() {
                           className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs"
                         />
                       </div>
+                      <div>
+                        <label className="block text-[10px] uppercase text-zinc-500 mb-1">Latency Alert Threshold (ms)</label>
+                        <input
+                          type="number"
+                          value={latencyThreshold}
+                          onChange={(e) => setLatencyThreshold(parseInt(e.target.value) || 0)}
+                          placeholder="12"
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs font-mono text-white"
+                        />
+                      </div>
                       <button
                         onClick={() => triggerNotification('success', 'Admin settings updated (Simulated)')}
                         className="px-3 py-1.5 bg-sky-500 hover:bg-sky-400 text-zinc-950 rounded text-[11px] font-bold cursor-pointer"
@@ -1627,12 +1753,21 @@ export default function App() {
                         Launch Admin Console
                       </button>
                    </div>
-                   <button 
-                      onClick={() => setLocale(locale === 'en' ? 'id' : 'en')}
-                      className="px-3 py-1 bg-zinc-950 border border-zinc-800 rounded font-mono text-[9px] text-zinc-400 hover:text-sky-400 transition-all uppercase"
-                   >
-                      {locale.toUpperCase()}
-                   </button>
+                   <div className="flex items-center gap-2">
+                       <button 
+                          onClick={() => setIsDocsModalOpen(true)}
+                          className="px-3 py-1 bg-zinc-950 border border-zinc-800 rounded font-mono text-[9px] text-zinc-400 hover:text-sky-400 transition-all uppercase flex items-center gap-1.5"
+                       >
+                          <BookOpen size={10} />
+                          {t.documentation}
+                       </button>
+                       <button 
+                          onClick={() => setLocale(locale === 'en' ? 'id' : 'en')}
+                          className="px-3 py-1 bg-zinc-950 border border-zinc-800 rounded font-mono text-[9px] text-zinc-400 hover:text-sky-400 transition-all uppercase"
+                       >
+                          {locale.toUpperCase()}
+                       </button>
+                   </div>
                 </div>
               </div>
             </div>
@@ -2091,6 +2226,101 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* DOCUMENTATION MODAL (Scaled Up Version) */}
+      <AnimatePresence>
+        {isDocsModalOpen && (
+          <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl relative"
+            >
+              <div className="bg-zinc-950 border-b border-zinc-800 p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shadow-neon">
+                    <BookOpen size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-white uppercase tracking-widest font-mono">{t.documentation}</h2>
+                    <p className="text-[10px] text-zinc-500 font-mono italic uppercase tracking-tighter">{t.docsSubtitle}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsDocsModalOpen(false)}
+                  className="w-8 h-8 rounded-full hover:bg-zinc-800 flex items-center justify-center text-zinc-500 hover:text-white transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto max-h-[70vh] scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <section>
+                      <h3 className="text-[10px] font-mono font-bold text-sky-500 uppercase tracking-widest mb-3 border-b border-zinc-800 pb-1">01. Dynamic VHost Engine</h3>
+                      <p className="text-xs text-zinc-400 leading-relaxed font-sans">
+                        Managing high-performance Nginx virtual environments using a unified template generator. Supports upstream clustering for multi-node load balanced target groups.
+                      </p>
+                      <ul className="mt-2 space-y-1.5">
+                        <li className="text-[10px] font-mono text-zinc-500 flex items-center gap-2">
+                          <Check size={10} className="text-emerald-500" />
+                          Template-based config generation
+                        </li>
+                        <li className="text-[10px] font-mono text-zinc-500 flex items-center gap-2">
+                          <Check size={10} className="text-emerald-500" />
+                          Upstream node health orchestration
+                        </li>
+                      </ul>
+                    </section>
+
+                    <section>
+                      <h3 className="text-[10px] font-mono font-bold text-sky-500 uppercase tracking-widest mb-3 border-b border-zinc-800 pb-1">02. Deployment Pre-flight</h3>
+                      <p className="text-xs text-zinc-400 leading-relaxed font-sans mb-3">
+                        Verifies local environment readiness before production deployment.
+                      </p>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-[9px] font-mono bg-zinc-950 p-2 rounded">
+                          <span>Caddy Binary</span>
+                          <span className="text-emerald-500">READY</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[9px] font-mono bg-zinc-950 p-2 rounded">
+                          <span>Nginx Ingress</span>
+                          <span className="text-emerald-500">READY</span>
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+
+                  <div className="space-y-6">
+                    <section>
+                      <h3 className="text-[10px] font-mono font-bold text-sky-500 uppercase tracking-widest mb-3 border-b border-zinc-800 pb-1">03. Ingress Tunneling</h3>
+                      <p className="text-xs text-zinc-400 leading-relaxed font-sans">
+                        Expose internal local services to the public mesh through secure ingress rules. Includes baked-in webhook receiver inspection for deployment automation.
+                      </p>
+                      <div className="mt-4 p-3 bg-zinc-950 rounded-lg border border-zinc-800 font-mono text-[9px]">
+                        <div className="text-zinc-600 mb-1 font-bold underline italic">Security Note:</div>
+                        <p className="text-zinc-500">All tunnels are proxied through a dynamic gateway mesh with mandatory SSL termination at the edge.</p>
+                      </div>
+                    </section>
+
+                    <section>
+                      <h3 className="text-[10px] font-mono font-bold text-sky-500 uppercase tracking-widest mb-3 border-b border-zinc-800 pb-1">04. Monitoring Tools</h3>
+                      <p className="text-xs text-zinc-400 leading-relaxed font-sans">
+                        Real-time visitor telemetry, network throughput analytics, and interactive trace sandboxes for performance debugging and latency analysis.
+                      </p>
+                    </section>
+                  </div>
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-zinc-800 text-center">
+                  <p className="text-[10px] font-mono text-zinc-500">GENESIS CORE v2026.05.22 ALPHA-BUILD — DESIGNED & ENGINEERED BY ARDY SYAFII</p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
