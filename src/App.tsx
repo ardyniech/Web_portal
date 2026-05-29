@@ -2314,7 +2314,7 @@ export default function App() {
                       transition={{ delay: 0.1 * idx }}
                     >
                       <TacticalPanel className="h-full hover:border-sky-500/50 transition-colors group cursor-pointer" title={`LOG ENTRY #${idx + 1}`}>
-                         <a href={project.link.replace(/^https?:\/\/[^/]+/, '') || '#'}  rel="noopener noreferrer" className="block space-y-4">
+                         <a href={project.link}  rel="noopener noreferrer" className="block space-y-4">
                             <div className="flex items-center justify-between">
                                <div className="w-10 h-10 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-center text-zinc-500 group-hover:text-sky-400 transition-colors">
                                   <LucideIcon name={project.iconName as any} size={20} />
