@@ -11,19 +11,22 @@ import { loginUser } from '../utils/api';
 interface AuthScreenProps {
   onSuccess: (token: string, profile: any) => void;
   onBack: () => void;
+  locale?: 'en' | 'id';
 }
 
-export function AuthScreen({ onSuccess, onBack }: AuthScreenProps) {
+export function AuthScreen({ onSuccess, onBack, locale = 'id' }: AuthScreenProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const isId = locale === 'id';
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
-      setError('Please fill in both fields.');
+      setError(isId ? 'Silakan isi kedua kolom tersebut.' : 'Please fill in both fields.');
       return;
     }
     setError('');
@@ -32,7 +35,7 @@ export function AuthScreen({ onSuccess, onBack }: AuthScreenProps) {
       const data = await loginUser(username.trim(), password);
       onSuccess(data.token, data.profile);
     } catch (err: any) {
-      setError(err.message || 'Login failed. Check credentials.');
+      setError(err.message || (isId ? 'Gagal masuk. Silakan periksa nama pengguna & kata sandi Anda.' : 'Login failed. Check credentials.'));
     } finally {
       setLoading(false);
     }
@@ -45,9 +48,9 @@ export function AuthScreen({ onSuccess, onBack }: AuthScreenProps) {
         <button
           onClick={onBack}
           id="btn-back-to-landing"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-300 hover:text-zinc-50 hover:bg-zinc-800 transition"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-300 hover:text-zinc-50 hover:bg-zinc-800 transition cursor-pointer"
         >
-          <ArrowLeft size={14} /> Back to Hub
+          <ArrowLeft size={14} /> {isId ? 'Kembali' : 'Back to Hub'}
         </button>
       </div>
 
@@ -64,10 +67,10 @@ export function AuthScreen({ onSuccess, onBack }: AuthScreenProps) {
             <Shield size={20} className="drop-shadow-neon" />
           </div>
           <h2 className="text-lg font-bold tracking-tight text-white font-sans text-center drop-shadow-neon">
-            Genesis Terminal Auth
+            {isId ? 'Autentikasi Terminal' : 'Genesis Terminal Auth'}
           </h2>
           <p className="text-xs text-zinc-400 mt-1 text-center font-mono">
-           Enter security token credentials
+            {isId ? 'Masukkan sandi kredensial pengaman' : 'Enter security token credentials'}
           </p>
         </div>
 
@@ -80,7 +83,7 @@ export function AuthScreen({ onSuccess, onBack }: AuthScreenProps) {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-xs font-mono text-zinc-300 uppercase tracking-wider mb-1.5">Username</label>
+            <label className="block text-xs font-mono text-zinc-300 uppercase tracking-wider mb-1.5">{isId ? 'Nama Pengguna' : 'Username'}</label>
             <div className="relative">
               <User size={14} className="absolute left-3 top-2.5 text-zinc-500" />
               <input
@@ -96,7 +99,7 @@ export function AuthScreen({ onSuccess, onBack }: AuthScreenProps) {
           </div>
 
           <div>
-            <label className="block text-xs font-mono text-zinc-300 uppercase tracking-wider mb-1.5">Security Password</label>
+            <label className="block text-xs font-mono text-zinc-300 uppercase tracking-wider mb-1.5">{isId ? 'Sandi Keamanan' : 'Security Password'}</label>
             <div className="relative">
               <Key size={14} className="absolute left-3 top-2.5 text-zinc-500" />
               <input
@@ -120,7 +123,7 @@ export function AuthScreen({ onSuccess, onBack }: AuthScreenProps) {
             {loading ? (
               <span className="w-4 h-4 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin" />
             ) : (
-              'Establish Secure Session'
+              isId ? 'Hubungkan Sesi Aman' : 'Establish Secure Session'
             )}
           </button>
         </form>

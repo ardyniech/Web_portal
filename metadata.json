@@ -1,6 +1,8 @@
 {
-  "name": "Genesis Core",
-  "description": "Genesis Core: A professional-grade Unified Dynamics Control & Advanced Gateway Mesh. Featuring high-performance service monitoring, real-time Nginx VHost generation, DDNS synchronization (Cloudflare/No-IP/DuckDNS), and interactive network trace sandboxes with live latency analytics.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "name": "Orchestra Gateway",
+  "description": "Orchestra Gateway: A clean, reliable dashboard for managing reverse proxies, DDNS synchronizations, local port forward configurations, and live cluster service telemetry.",
+  "Overwrite": true,
+  "TargetFile": "/metadata.json",
+  "toolAction: Updating metadata with the new project name",
+  "toolSummary": "Update metadata with clean name"
 }

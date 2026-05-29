@@ -26,7 +26,6 @@ import {
   RefreshCw,
   LogOut,
   Sliders,
-  Send,
   Sparkles,
   User,
   Layers,
@@ -34,7 +33,8 @@ import {
   AlertCircle,
   AlertTriangle,
   ArrowRight,
-  BookOpen
+  BookOpen,
+  Contrast
 } from 'lucide-react';
 import { LucideIcon } from './components/LucideIcon';
 import { AuthScreen } from './components/AuthScreen';
@@ -61,7 +61,7 @@ import {
   deletePortForward,
   logoutUser
 } from './utils/api';
-import { HeroContent, Project, SocialLink, NginxConfig, DDNSConfig, PortForward } from './types';
+import { HeroContent, Project, SocialLink, NginxConfig, DDNSConfig, PortForward, CaddySite, ToastItem } from './types';
 
 // Tactical UI Components for "Out of the Box" Design
 const TacticalCorner = ({ className }: { className?: string }) => (
@@ -94,23 +94,60 @@ const getRelativeTime = (timestamp: string) => {
 };
 
 // Visual resource tracker
-const ResourceTile = ({ label, value, color }: { label: string, value: number, color: string }) => (
-  <div className="bg-zinc-950 p-3 rounded border border-zinc-800">
-    <div className="flex justify-between mb-2">
-      <span className="text-[9px] font-mono uppercase text-zinc-500">{label}</span>
-      <span className={`text-[9px] font-bold`} style={{ color }}>{value}%</span>
+const ResourceTile = ({ label, value, color, threshold, warningMsg }: { label: string, value: number, color: string, threshold?: number, warningMsg?: string }) => {
+  const isExceeded = threshold !== undefined && value > threshold;
+  return (
+    <div className={`p-3 rounded border transition-all duration-300 relative overflow-hidden ${isExceeded ? 'bg-red-950/20 border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.15)]' : 'bg-zinc-950 border-zinc-800'}`}>
+      {isExceeded && (
+        <div className="absolute top-0 left-0 w-full h-[2px] bg-red-500 animate-pulse" />
+      )}
+      <div className="flex justify-between mb-2">
+        <span className={`text-[9px] font-mono uppercase ${isExceeded ? 'text-red-400 font-bold flex items-center gap-1' : 'text-zinc-500'}`}>
+          {isExceeded && <AlertTriangle size={10} className="text-red-500 animate-bounce" />}
+          {label}
+        </span>
+        <span className={`text-[9px] font-bold`} style={{ color: isExceeded ? '#ef4444' : color }}>
+          {value}% {isExceeded && `(> ${threshold}%)`}
+        </span>
+      </div>
+      <div className="h-1 bg-zinc-900 rounded-full overflow-hidden">
+        <motion.div initial={{ width: 0 }} animate={{ width: `${value}%` }} className="h-full" style={{ backgroundColor: isExceeded ? '#ef4444' : color }} />
+      </div>
+      {isExceeded && warningMsg && (
+        <div className="mt-1.5 text-[8.5px] text-red-400 font-mono leading-none font-semibold uppercase tracking-wider">
+          ⚠ {warningMsg}
+        </div>
+      )}
     </div>
-    <div className="h-1 bg-zinc-900 rounded-full overflow-hidden">
-      <motion.div initial={{ width: 0 }} animate={{ width: `${value}%` }} className="h-full" style={{ backgroundColor: color }} />
-    </div>
-  </div>
-);
+  );
+};
 
 // Log terminal component
 const LogTerminal = ({ logs }: { logs: string[] }) => (
   <div className="bg-black/90 rounded-lg p-3 font-mono text-[9px] text-zinc-400 border border-zinc-800 h-24 overflow-y-auto">
     {logs.map((log, i) => <div key={i} className="mb-0.5 whitespace-nowrap">{log}</div>)}
   </div>
+);
+
+
+
+// General management settings
+const GeneralSettingsPanel = ({ username, password, onUsernameChange, onPasswordChange, onSave, t }: { username: string, password: string, onUsernameChange: (v: string) => void, onPasswordChange: (v: string) => void, onSave: () => void, t: any }) => (
+    <div className="space-y-4 font-mono text-xs">
+        <TacticalPanel title={t.adminCreds}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <label className="text-[10px] text-zinc-500 uppercase">{t.username}</label>
+                    <input type="text" className="w-full bg-zinc-950 border border-zinc-800 p-2 text-white" value={username} onChange={(e) => onUsernameChange(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-[10px] text-zinc-500 uppercase">{t.password}</label>
+                    <input type="password" className="w-full bg-zinc-950 border border-zinc-800 p-2 text-white" value={password} onChange={(e) => onPasswordChange(e.target.value)} />
+                </div>
+            </div>
+            <button className="mt-4 px-4 py-2 bg-sky-500 text-black font-bold text-xs uppercase cursor-pointer" onClick={onSave}>{t.saveCreds}</button>
+        </TacticalPanel>
+    </div>
 );
 
 const TacticalPanel = ({ children, title, footer, className = '' }: { children: React.ReactNode, title?: string, footer?: string, className?: string }) => (
@@ -141,7 +178,8 @@ const TacticalPanel = ({ children, title, footer, className = '' }: { children: 
 // Uses custom high-contrast SVG graphics/geometric badges instead.
 export default function App() {
   const [isAdminMode, setIsAdminMode] = useState(false);
-  const [locale, setLocale] = useState<'id' | 'en'>(() => (localStorage.getItem('orchestra_locale') as 'id' | 'en') || 'en');
+  const [locale, setLocale] = useState<'id' | 'en'>(() => (localStorage.getItem('orchestra_locale') as 'id' | 'en') || 'id');
+  const [isMonochrome, setIsMonochrome] = useState<boolean>(() => localStorage.getItem('orchestra_monochrome') === 'true');
   const [authToken, setAuthToken] = useState<string | null>(() => localStorage.getItem('orchestra_auth_token'));
   const [adminProfile, setAdminProfile] = useState<any>(() => {
     const saved = localStorage.getItem('orchestra_admin_profile');
@@ -163,20 +201,45 @@ export default function App() {
   
 // Admin only configs
   const [nginxConfigs, setNginxConfigs] = useState<NginxConfig[]>([]);
-  const [caddySites, setCaddySites] = useState<{ id: string, name: string, status: 'up' | 'down', load: number }[]>([
-    { id: '1', name: 'main-api.local', status: 'up', load: 12 },
-    { id: '2', name: 'static.cdn.local', status: 'up', load: 5 },
-    { id: '3', name: 'auth.service.local', status: 'down', load: 0 }
-  ]);
+  const [caddySites, setCaddySites] = useState<CaddySite[]>(() => {
+    const saved = localStorage.getItem('orchestra_caddy_sites');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse saved caddy sites", e);
+      }
+    }
+    return [
+      { id: '1', name: 'main-api.local', status: 'up', load: 12, uptime: 99.98, lastHeartbeat: new Date(Date.now() - 4000).toISOString() },
+      { id: '2', name: 'static.cdn.local', status: 'up', load: 5, uptime: 99.94, lastHeartbeat: new Date(Date.now() - 9000).toISOString() },
+      { id: '3', name: 'auth.service.local', status: 'down', load: 0, uptime: 94.21, lastHeartbeat: new Date(Date.now() - 320000).toISOString() }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('orchestra_caddy_sites', JSON.stringify(caddySites));
+  }, [caddySites]);
+
   const [ddnsConfigs, setDdnsConfigs] = useState<DDNSConfig[]>([]);
   const [portForwards, setPortForwards] = useState<PortForward[]>([]);
   
   // New State for Upgrades
   const [systemResources, setSystemResources] = useState({ cpu: 15, ram: 42, disk: 68 });
-  const [appLogs, setAppLogs] = useState<string[]>(['[INFO] Genesis Core initialized...', '[INFO] Caddy module loaded...']);
+  const [appLogs, setAppLogs] = useState<string[]>(['[INFO] Orchestra Gateway initialized...', '[INFO] Caddy module loaded...']);
+  const [systemSettings, setSystemSettings] = useState(() => JSON.parse(localStorage.getItem('system_settings') || '{}'));
+
+  const updateSettings = (key: string, value: string) => {
+    setSystemSettings((prev: any) => ({ ...prev, [key]: value }));
+  };
+  
+  const saveSettings = () => {
+    localStorage.setItem('system_settings', JSON.stringify(systemSettings));
+    triggerNotification('success', 'Settings saved successfully');
+  };
 
   // Page active tabs for Admin View
-  const [activeAdminTab, setActiveAdminTab] = useState<'monitor' | 'content' | 'nginx' | 'ddns' | 'ports'>('monitor');
+  const [activeAdminTab, setActiveAdminTab] = useState<'monitor' | 'content' | 'nginx' | 'ddns' | 'ports' | 'settings'>('monitor');
 
   // Interactive CRUD Modal/Forms states
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
@@ -186,7 +249,7 @@ export default function App() {
   const [editingNginx, setEditingNginx] = useState<Partial<NginxConfig> | null>(null);
 
   const [isCaddyModalOpen, setIsCaddyModalOpen] = useState(false);
-  const [editingCaddy, setEditingCaddy] = useState<{name: string, domain: string} | null>(null);
+  const [editingCaddy, setEditingCaddy] = useState<Partial<CaddySite> | null>(null);
 
   const [isDdnsModalOpen, setIsDdnsModalOpen] = useState(false);
   const [editingDdns, setEditingDdns] = useState<Partial<DDNSConfig> | null>(null);
@@ -204,16 +267,29 @@ export default function App() {
     '[SECURITY] SSL DIRECTIVES SECURED VIA CERTBOT ON CLOUDFLARE'
   ]);
   const [pingLatencies, setPingLatencies] = useState<number[]>([]);
-  const [latencyThreshold, setLatencyThreshold] = useState<number>(12);
+  const [latencyThreshold, setLatencyThreshold] = useState<number>(() => {
+    const saved = localStorage.getItem('latency_threshold');
+    return saved ? parseInt(saved) : 12;
+  });
+  const [cpuThreshold, setCpuThreshold] = useState<number>(() => {
+    const saved = localStorage.getItem('cpu_threshold');
+    return saved ? parseInt(saved) : 80;
+  });
+  const [ramThreshold, setRamThreshold] = useState<number>(() => {
+    const saved = localStorage.getItem('ram_threshold');
+    return saved ? parseInt(saved) : 80;
+  });
+  const [projectLatencies, setProjectLatencies] = useState<Record<string, number>>({});
 
   const clearTraceHistory = () => {
     setPingSimulatorLogs([]);
     setPingLatencies([]);
+    setProjectLatencies({});
   };
 
-  const triggerPingTrace = (projectName: string, targetLink: string) => {
+  const triggerPingTrace = (projectName: string, targetLink: string, projectId: string) => {
     const time = new Date().toLocaleTimeString();
-    const rtt = Math.floor(Math.random() * 12) + 4;
+    const rtt = Math.floor(Math.random() * 30) + 5;
     const newLogs = [
       `[${time}] Requests trace sent to node: ${projectName}`,
       `[${time}] Trace path: Core Server -> Dynamic Proxy -> ${targetLink}`,
@@ -221,6 +297,7 @@ export default function App() {
     ];
     setPingSimulatorLogs(prev => [...newLogs, prev[0] || ''].slice(0, 8));
     setPingLatencies(prev => [rtt, ...prev].slice(0, 50));
+    setProjectLatencies(prev => ({ ...prev, [projectId]: rtt }));
   };
 
   const latencyStats = useMemo(() => {
@@ -235,35 +312,41 @@ export default function App() {
   // Admin Setting States
   const [settingsUsername, setSettingsUsername] = useState(() => localStorage.getItem('admin_username') || 'admin');
   const [settingsPassword, setSettingsPassword] = useState(() => localStorage.getItem('admin_password') || 'admin123');
-
-  useEffect(() => {
+  
+  // Save General Edits (e.g., credentials)
+  const saveGeneralSettings = () => {
     localStorage.setItem('admin_username', settingsUsername);
-  }, [settingsUsername]);
-
-  useEffect(() => {
     localStorage.setItem('admin_password', settingsPassword);
-  }, [settingsPassword]);
+    triggerNotification('success', 'General settings saved (Credential storage)');
+  };
 
   // UI States
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [successMsg, setSuccessMsg] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
 
-  // Auto-clear helper for notifications
-  const triggerNotification = (type: 'success' | 'error', text: string) => {
-    if (type === 'success') {
-      setSuccessMsg(text);
-      setTimeout(() => setSuccessMsg(''), 3500);
-    } else {
-      setErrorMsg(text);
-      setTimeout(() => setErrorMsg(''), 4500);
-    }
+  // Elegant Toast Manager with auto-clear, stacking, and custom dismiss animation support
+  const triggerNotification = (type: 'success' | 'error' | 'info' | 'warning', text: string) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev, { id, type, text }]);
+
+    const duration = type === 'success' ? 3500 : 5000;
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, duration);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
   };
 
   useEffect(() => {
     localStorage.setItem('orchestra_locale', locale);
   }, [locale]);
+
+  useEffect(() => {
+    localStorage.setItem('orchestra_monochrome', String(isMonochrome));
+  }, [isMonochrome]);
 
   const dict = {
     en: {
@@ -272,11 +355,12 @@ export default function App() {
       open: 'Open',
       connect: 'Connect',
       adminSettings: 'Admin Settings',
-      contentTab: 'Content',
-      monitorTab: 'Monitor',
-      nginxTab: 'Nginx',
-      ddnsTab: 'DDNS',
-      portsTab: 'Ports',
+      contentTab: 'Landing Page CMS',
+      monitorTab: 'Gateway Monitor',
+      nginxTab: 'Nginx VirtualHosts',
+      ddnsTab: 'DDNS Synchronizer',
+      portsTab: 'Port Ingress Tunnel',
+      settingsTab: 'General Settings',
       heroLandingDetails: 'HERO & LANDING PAGE DETAILS',
       syncGateway: 'Sync Gateway Content',
       projectTiles: 'PROJECT TILES INCLUDED',
@@ -285,7 +369,110 @@ export default function App() {
       inactiveStatus: 'INACTIVE',
       getStarted: 'Get Started',
       documentation: 'Documentation',
-      docsSubtitle: 'System Overview & Guidelines'
+      docsSubtitle: 'System Overview & Guidelines',
+      originNode: 'Origin Node',
+      identityMonitor: 'IDENTITY MONITOR',
+      authenticityVerified: 'AUTHENTICITY VERIFIED',
+      loadOptimized: 'Load: OPTIMIZED',
+      secEncrypted: 'Sec: ENCRYPTED',
+      networkTelemetry: 'SYSTEM TELEMETRY',
+      networkThroughput: 'Network Throughput',
+      ping: 'Ping',
+      nodes: 'Nodes',
+      liveSync: 'Live Sync Alpha',
+      trafficAnalysis: 'TRAFFIC ANALYSIS',
+      connectivity: 'CONNECTIVITY',
+      launchAdmin: 'Launch Admin Console',
+      closeAdmin: 'Exit Panel',
+      terminalTitle: 'INTERACTIVE TRACE SANDBOX',
+      terminalSubtitle: 'Tap a registered node below to trace ingress hop packets',
+      minLatency: 'Min Latency',
+      avgLatency: 'Avg Latency',
+      maxLatency: 'Max Latency',
+      clearHistory: 'Clear History',
+      highLatencyWarning: 'High Latency Detected',
+      resolverPreview: 'Resolver Channels Preview',
+      sslSecuredByCertbot: 'SSL Secured via Certbot on Cloudflare',
+      nginxTitle: 'NGINX EDGE DIRECTIVES',
+      nginxDesc: 'Router Gateway Daemon. Passes secure Client HTTP request packets directly to local application sockets.',
+      ddnsTitle: 'DDNS REGISTER CONTROL',
+      ddnsDesc: 'Automatically synchronizes dynamic public host IP endpoints every 15 minutes to keep routing pipelines active.',
+      forwardTitle: 'FORWARD TUNNEL PORTING',
+      forwardDesc: 'Integrates dynamic external callback URLs with low latency response checking for instant developer feedback.',
+      adminPortalTitle: 'ORCHESTRA CONTROL BOARD',
+      adminPortalSub: 'Secure Gateway Routing & Service Mesh Panel',
+      activeRoute: 'Active Routing Hop',
+      terminateSession: 'Terminate Session',
+      cpuLoad: 'CPU Load',
+      ramUsage: 'RAM Usage',
+      diskSpace: 'Disk Space',
+      highCpuWarn: 'High CPU Usage Warning',
+      highRamWarn: 'High RAM Allocation Warning',
+      monitorRules: 'Gateway Monitor Rules',
+      adjustLimits: 'Adjust Sim & Limits',
+      cpuAlertLimit: 'CPU Alert limit',
+      ramAlertLimit: 'RAM Alert limit',
+      latencyAlertLimit: 'Latency Alert limit',
+      setSim: 'Set Simulation:',
+      valuesAboveWarn: 'Values above highlight active routes in orange',
+      caddyTelemetry: 'Caddy Proxy Telemetry',
+      easySetup: 'Easy Setup',
+      loadLabel: 'Load',
+      caddyEditTitle: 'Edit Monitored Caddy Site',
+      caddyAddTitle: 'Add New Monitored Caddy Site',
+      caddyDomainLabel: 'Target Site Domain URL',
+      caddyUptimeLabel: 'Uptime',
+      caddyHeartbeat: 'Heartbeat State',
+      caddyLoadLabel: 'Simulated Node Load',
+      caddySaveBtn: 'Commit Monitored Site',
+      caddyDeleteConfirm: 'Are you sure you want to stop monitoring this Caddy site?',
+      lastHeartbeatTime: 'Last contact in',
+      checklist: 'Deployment Checklist',
+      logsValidator: 'Logs & Validator',
+      validateConfigs: 'Validate Configs',
+      liveTitle: 'LIVE GATEWAY MONITOR & TUNNEL ROUTING',
+      liveSubtitle: 'Secure administrative telemetries, reverse proxy hops & Cloudflare DDNS resolvers',
+      sessionActive: 'Session Active',
+      terminate: 'Terminate',
+      dynamicGateway: 'Dynamic Gateway',
+      reverseProxies: 'Reverse Proxies',
+      throughput: 'Throughput',
+      clientIngress: 'Client Ingress',
+      targetModule: 'Target Module',
+      nginxManager: 'NGINX REVERSE PROXY MANAGER',
+      nginxSub: 'Configure custom routing domains, load-balanced upstreams, and Certbot certificates',
+      newVHost: 'New VirtualHost',
+      sslTermination: 'SSL Termination',
+      mapsTo: 'Maps to:',
+      editVHost: 'Edit vHost',
+      multiNodeUpstream: 'Multi-Node Upstream Target Groups',
+      nodeLabel: 'Node',
+      generatedTemplate: 'GENERATED CONFIGURED TEMPLATE BLOCK',
+      ddnsResolver: 'BUILT-IN DDNS RESOLVER',
+      ddnsSub: 'Synchronize dynamically updated home server WAN address into Cloudflare Zones',
+      forceCheck: 'Force DDNS Check',
+      syncing: 'Syncing...',
+      newRecord: 'New Record',
+      provider: 'Provider',
+      targetResolvingDomain: 'Target Resolving Domain',
+      wanIpBind: 'WAN IP Bind',
+      lastHeartbeatChecked: 'Last Heartbeat Checked',
+      editProfile: 'Edit Profile',
+      portMappingsTitle: 'PORT INGRESS & WEBHOOK MAPPINGS',
+      portMappingsSub: 'Expose port mappings to inspect real-time webhooks (e.g. GitHub trigger payload)',
+      addRule: 'Add Rule',
+      exposedPort: 'EXPOSED PORT',
+      targetWebhookUrl: 'Target Webhook Listener URL',
+      simulatePing: 'Simulate Ping',
+      delivering: 'Delivering...',
+      notSpecified: 'Not specified',
+      generalSettings: 'General Settings',
+      generalSettingsSub: 'Update your administrative credentials.',
+      adminCreds: 'Administrator Credentials',
+      username: 'Username',
+      password: 'Password',
+      saveCreds: 'Save Credentials',
+      monochromeToggle: 'Toggle Monochrome',
     },
     id: {
       featuredWork: 'Karya Unggulan',
@@ -293,24 +480,164 @@ export default function App() {
       open: 'Buka',
       connect: 'Hubungkan',
       adminSettings: 'Pengaturan Admin',
-      contentTab: 'Konten',
-      monitorTab: 'Monitor',
-      nginxTab: 'Nginx',
-      ddnsTab: 'DDNS',
-      portsTab: 'Port',
-      heroLandingDetails: 'DETAIL HERO & LANDING PAGE',
-      syncGateway: 'Sinkronisasi Konten Gateway',
-      projectTiles: 'TILE PROYEK TERMASUK',
-      addTile: 'Tambah Tile',
-      activeStatus: 'AKTIF',
+      contentTab: 'Kelola Tampilan Utama',
+      monitorTab: 'Pantau Jaringan (Monitor)',
+      nginxTab: 'Rute Server (Nginx VirtualHosts)',
+      ddnsTab: 'Pengubah Nama Otomatis (DDNS)',
+      portsTab: 'Pintu Masuk Terowongan (Port Ingress)',
+      settingsTab: 'Pengaturan Sandi Admin',
+      heroLandingDetails: 'PENGATURAN HALAMAN UTAMA',
+      syncGateway: 'Simpan & Sinkronisasi Konten',
+      projectTiles: 'KUMPULAN PROYEK LAYANAN YANG TERSEDIA',
+      addTile: 'Tambah Proyek',
+      activeStatus: 'AKTIF (Berjalan Baik)',
       inactiveStatus: 'NONAKTIF',
       getStarted: 'Mulai Sekarang',
-      documentation: 'Dokumentasi',
-      docsSubtitle: 'Tinjauan Sistem & Panduan'
+      documentation: 'Buku Panduan Pemula',
+      docsSubtitle: 'Penjelasan Singkat Cara Kerja Jaringan',
+      originNode: 'Server Utama',
+      identityMonitor: 'PROFIL PENGEMBANG',
+      authenticityVerified: 'SISTEM RESMI TERVERIFIKASI',
+      loadOptimized: 'Beban Server: SANGAT RINGAN & AMAN',
+      secEncrypted: 'Keamanan: TERSANDI AMAN (SSL)',
+      networkTelemetry: 'ALAT PANTAU KINERJA SERVER (TELEMETRI)',
+      networkThroughput: 'Aliran Kecepatan Data Jaringan',
+      ping: 'Laju Respons (Ping)',
+      nodes: 'Layanan Aktif',
+      liveSync: 'Sinkronisasi Langsung Aktif',
+      trafficAnalysis: 'ANALISIS PENGUNJUNG',
+      connectivity: 'HUBUNGI SAYA / JEJARING SOSIAL',
+      launchAdmin: 'Buka Panel Pengatur Admin',
+      closeAdmin: 'Tutup Panel',
+      terminalTitle: 'UJICUBA PERJALANAN DATA INTERAKTIF',
+      terminalSubtitle: 'Silakan klik salah satu tombol proyek di bawah ini untuk melihat bagaimana data berpindah secara nyata',
+      minLatency: 'Respons Tercepat',
+      avgLatency: 'Respons Rata-Rata',
+      maxLatency: 'Respons Terlambat',
+      clearHistory: 'Hapus Catatan',
+      highLatencyWarning: 'Koneksi Sedang Lambat (Respons Tinggi)',
+      resolverPreview: 'Pratinjau Saluran Rute Jaringan',
+      sslSecuredByCertbot: 'Sudah Dilengkapi Kunci Keamanan Otomatis (SSL)',
+      nginxTitle: 'PENGATUR ALIRAN RUTE WEB (NGINX)',
+      nginxDesc: 'Menerima kunjungan dari internet lalu menyalurkannya ke aplikasi lokal komputer Anda dengan aman dan rapi.',
+      ddnsTitle: 'SISTEM NAMA DOMAIN OTOMATIS (DDNS)',
+      ddnsDesc: 'Secara cerdas memantau alamat internet (IP) rumah Anda setiap 15 menit, sehingga alamat web Anda tidak pernah terputus.',
+      forwardTitle: 'JALUR PINTAS KHUSUS (PORT FORWARDING)',
+      forwardDesc: 'Membuka rute khusus untuk menerima data kiriman balik (webhook) secara langsung dari internet untuk uji coba.',
+      adminPortalTitle: 'PENGENDALI UTAMA SERVING MESH',
+      adminPortalSub: 'Ruang Kendali Rute Gateway Jaringan Aman',
+      activeRoute: 'Rute Pengarah yang Aktif',
+      terminateSession: 'Keluar Admin',
+      cpuLoad: 'Beban CPU',
+      ramUsage: 'Penggunaan RAM',
+      diskSpace: 'Ruang Disk',
+      highCpuWarn: 'Pemberitahuan: Pemakaian CPU Sangat Tinggi',
+      highRamWarn: 'Pemberitahuan: Pemakaian RAM Sangat Tinggi',
+      monitorRules: 'Aturan Pemantau Jaringan',
+      adjustLimits: 'Ubah Simulasi & Batas',
+      cpuAlertLimit: 'Batas Peringatan CPU',
+      ramAlertLimit: 'Batas Peringatan RAM',
+      latencyAlertLimit: 'Batas Peringatan Latensi',
+      setSim: 'Uji Simulasi:',
+      valuesAboveWarn: 'Nilai di atas batas ini akan diwarnai oranye sebagai peringatan rute lambat',
+      caddyTelemetry: 'Penerus Rute Otomatis (Caddy Proxy Terpantau)',
+      easySetup: 'Pengaturan Cepat',
+      loadLabel: 'Beban',
+      caddyEditTitle: 'Ubah Target Pantau Biner Caddy',
+      caddyAddTitle: 'Tambah Target Pantau Baru (Caddy)',
+      caddyDomainLabel: 'Alamat Domain URL Target',
+      caddyUptimeLabel: 'Waktu Aktif (Uptime)',
+      caddyHeartbeat: 'Status Detak Jantung',
+      caddyLoadLabel: 'Beban Node Terpilih (Simulasi)',
+      caddySaveBtn: 'Simpan Profil Pemantau',
+      caddyDeleteConfirm: 'Apakah Anda yakin ingin berhenti memantau domain Caddy ini?',
+      lastHeartbeatTime: 'Kontak terakhir',
+      checklist: 'Daftar Periksa Kesiapan Server',
+      logsValidator: 'Pembaca Catatan & Validasi',
+      validateConfigs: 'Validasi Konfigurasi',
+      liveTitle: 'STATUS JALUR UTAMA & TEROWONGAN LANGSUNG',
+      liveSubtitle: 'Menampilkan data kinerja secara langsung, alur rute masuk Nginx, dan ip pemantau Cloudflare',
+      sessionActive: 'Sesi Aktif',
+      terminate: 'Keluar Sesi',
+      dynamicGateway: 'Pintu Gerbang IP',
+      reverseProxies: 'Rute Aktif',
+      throughput: 'Lalu Lintas Data',
+      clientIngress: 'Pengunjung Masuk',
+      targetModule: 'Layanan Dituju',
+      nginxManager: 'PENGELOLA REVERSE PROXY NGINX',
+      nginxSub: 'Konfigurasikan domain pengarah rute, pembagian beban hulu, serta sertifikat SSL otomatis',
+      newVHost: 'Buat VirtualHost Baru',
+      sslTermination: 'Terminasi SSL',
+      mapsTo: 'Diteruskan ke:',
+      editVHost: 'Ubah vHost',
+      multiNodeUpstream: 'Grup Distribusi Beban Server Hulu (Multi-Node)',
+      nodeLabel: 'Node',
+      generatedTemplate: 'BLOK TEMPLATE KODE KONFIGURASI YANG DIHASILKAN',
+      ddnsResolver: 'RESOLVER DDNS OTOMATIS',
+      ddnsSub: 'Sinkronisasikan nama domain Anda secara instan ke Cloudflare saat IP modem mengalami perubahan rute',
+      forceCheck: 'Paksa Periksa DDNS',
+      syncing: 'Sinkronisasi...',
+      newRecord: 'Tambah Rekaman Baru',
+      provider: 'Provider',
+      targetResolvingDomain: 'Nama Domain Tujuan',
+      wanIpBind: 'Sambungan IP Publik WAN',
+      lastHeartbeatChecked: 'Pemeriksaan Terakhir',
+      editProfile: 'Ubah Profil',
+      portMappingsTitle: 'PEMETAAN PORT INGRESS & WEBHOOK',
+      portMappingsSub: 'Buka lubang pintu khusus port lalu lintas luar untuk melihat data kiriman webhook secara instan',
+      addRule: 'Tambah Aturan',
+      exposedPort: 'PORT TERBUKA',
+      targetWebhookUrl: 'Alamat Penerima Webhook (Target)',
+      simulatePing: 'Simulasikan Ping',
+      delivering: 'Mengirimkan payload...',
+      notSpecified: 'Tidak ditentukan',
+      generalSettings: 'Pengaturan Umum',
+      generalSettingsSub: 'Ubah informasi kredensial login admin Anda.',
+      adminCreds: 'Kredensial Masuk Admin',
+      username: 'Nama Pengguna',
+      password: 'Kata Sandi',
+      saveCreds: 'Simpan Sandi Kunci',
+      monochromeToggle: 'Mode Monokrom'
     }
   };
 
   const t = dict[locale];
+
+  const docsContent = locale === 'id' ? {
+    sec1Title: "01. Rute Server (VHost Engine)",
+    sec1Body: "Mengelola rute virtual Nginx berkinerja tinggi menggunakan pembuat konfigurasi terpadu. Mendukung pengelompokan hulu untuk distribusi beban server agar lancar saat diakses banyak orang sekaligus.",
+    sec1Item1: "Pembuatan otomatis rute berbasis konfigurasi",
+    sec1Item2: "Pengaturan kesehatan & loadbalancing server lokal",
+    sec2Title: "02. Pemeriksaan Sebelum Aktif (Pre-flight)",
+    sec2Body: "Memastikan semua layanan lokal dalam keadaan siap (READY) dan aman sebelum mulai melayani pengunjung secara nyata.",
+    sec2Item1: "Biner Caddy",
+    sec2Item2: "Rute Masuk Nginx",
+    sec2Status: "SIAP",
+    sec3Title: "03. Terowongan Khusus (Ingress Tunneling)",
+    sec3Body: "Menghubungkan layanan lokal Anda agar dapat diakses dari luar internet secara aman melalui protokol rute masuk yang terenkripsi SSL otomatis.",
+    sec3NoteTitle: "Catatan Keamanan:",
+    sec3NoteBody: "Semua lalu lintas data yang lewat dijamin keamanannya menggunakan SSL/HTTPS di setiap rute.",
+    sec4Title: "04. Alat Pemantau Interaktif",
+    sec4Body: "Memantau statistik lalu lintas kunjungan secara langsung, grafik aliran data jaringan, serta respons koneksi (ping) secara visual.",
+    footer: "GENESIS CORE v2026.05.22 ALPHA-BUILD — DIRANCANG & DIKEMBANGKAN OLEH ARDY SYAFII"
+  } : {
+    sec1Title: "01. Dynamic VHost Engine",
+    sec1Body: "Managing high-performance Nginx virtual environments using a unified template generator. Supports upstream clustering for multi-node load balanced target groups.",
+    sec1Item1: "Template-based config generation",
+    sec1Item2: "Upstream node health orchestration",
+    sec2Title: "02. Deployment Pre-flight",
+    sec2Body: "Verifies local environment readiness before production deployment.",
+    sec2Item1: "Caddy Binary",
+    sec2Item2: "Nginx Ingress",
+    sec2Status: "READY",
+    sec3Title: "03. Ingress Tunneling",
+    sec3Body: "Expose internal local services to the public mesh through secure ingress rules. Includes baked-in webhook receiver inspection for deployment automation.",
+    sec3NoteTitle: "Security Note:",
+    sec3NoteBody: "All tunnels are proxied through a dynamic gateway mesh with mandatory SSL termination at the edge.",
+    sec4Title: "04. Monitoring Tools",
+    sec4Body: "Real-time visitor telemetry, network throughput analytics, and interactive trace sandboxes for performance debugging and latency analysis.",
+    footer: "GENESIS CORE v2026.05.22 ALPHA-BUILD — DESIGNED & ENGINEERED BY ARDY SYAFII"
+  };
 
   // Load public data on mount
   useEffect(() => {
@@ -322,6 +649,70 @@ export default function App() {
     if (authToken) {
       loadAdminData();
     }
+  }, [authToken]);
+
+  // Periodic Health Check Simulation
+  useEffect(() => {
+    const reportStatus = async (siteId: string, status: string) => {
+      if (!authToken) return;
+      try {
+        const response = await fetch(`/api/admin/report-status`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ siteId, status })
+        });
+        if (!response.ok) {
+           console.error(`Failed to report status: ${response.status} ${response.statusText}`);
+        }
+      } catch (err: any) {
+        const isNetworkError = err && (
+          err.name === 'TypeError' || 
+          err.message?.includes('fetch') || 
+          err.message?.includes('network') ||
+          err.message?.includes('NetworkError') ||
+          err.message?.includes('Failed to fetch')
+        );
+        if (isNetworkError) {
+          console.warn(`[Network] reportStatus failed due to temporary connection offline or server restart.`);
+        } else {
+          console.error(`Fetch error in reportStatus:`, err);
+        }
+      }
+    };
+
+    const interval = setInterval(() => {
+      setCaddySites(prevSites => {
+        const nextSites = prevSites.map(site => {
+          // Simulate health check result: 85% chance to be up
+          const isHealthy = Math.random() > 0.15;
+          const status = isHealthy ? 'up' : 'down';
+          // Tweak load slightly
+          const load = isHealthy ? Math.ceil(Math.random() * 25) : 0;
+          const lastHeartbeat = isHealthy ? new Date().toISOString() : site.lastHeartbeat;
+          // Calculate realistic moving uptime
+          const currentUptime = site.uptime !== undefined ? site.uptime : 99.9;
+          const nextUptime = isHealthy
+            ? Math.min(100, Number((currentUptime + (100 - currentUptime) * 0.005).toFixed(3)))
+            : Math.max(80, Number((currentUptime - 0.15).toFixed(3)));
+
+          return { ...site, status, load, uptime: nextUptime, lastHeartbeat };
+        });
+
+        // Optimize reporting: only contact server when status actually changes
+        setTimeout(() => {
+          nextSites.forEach((site, index) => {
+            const prevSite = prevSites[index];
+            if (!prevSite || prevSite.status !== site.status) {
+              reportStatus(site.id, site.status);
+            }
+          });
+        }, 0);
+
+        return nextSites;
+      });
+    }, 10000); // Every 10 seconds
+
+    return () => clearInterval(interval);
   }, [authToken]);
 
   const loadPublicData = async () => {
@@ -464,7 +855,9 @@ export default function App() {
           apiToken: editingDdns.apiToken || '',
           zoneId: editingDdns.zoneId || '',
           lastDetectedIp: editingDdns.lastDetectedIp || '180.244.131.25',
-          status: editingDdns.status || 'Active'
+          status: editingDdns.status || 'Active',
+          checkFrequency: editingDdns.checkFrequency || 15,
+          enabled: editingDdns.enabled ?? true
         });
         triggerNotification('success', 'DDNS record router configured.');
       }
@@ -502,6 +895,49 @@ export default function App() {
     } catch (err: any) {
       triggerNotification('error', err.message);
     }
+  };
+
+  // Caddy Monitoring Actions
+  const handleAddCaddyClick = () => {
+    setEditingCaddy({ name: '', status: 'up', load: 12, uptime: 100.0, lastHeartbeat: new Date().toISOString() });
+    setIsCaddyModalOpen(true);
+  };
+
+  const handleEditCaddyClick = (site: CaddySite) => {
+    setEditingCaddy(site);
+    setIsCaddyModalOpen(true);
+  };
+
+  const handleSaveCaddySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCaddy || !editingCaddy.name) return;
+
+    setCaddySites(prev => {
+      const exists = prev.find(site => site.id === editingCaddy.id);
+      if (exists) {
+        return prev.map(site => site.id === editingCaddy.id ? { ...site, ...editingCaddy } as CaddySite : site);
+      } else {
+        const newSite: CaddySite = {
+          id: String(Date.now()),
+          name: editingCaddy.name || '',
+          status: editingCaddy.status || 'up',
+          load: editingCaddy.load || 0,
+          uptime: editingCaddy.uptime !== undefined ? Number(editingCaddy.uptime) : 100.0,
+          lastHeartbeat: editingCaddy.lastHeartbeat || new Date().toISOString()
+        };
+        return [...prev, newSite];
+      }
+    });
+
+    setIsCaddyModalOpen(false);
+    setEditingCaddy(null);
+    triggerNotification('success', 'Caddy monitoring profile committed successfully');
+  };
+
+  const handleDeleteCaddy = (id: string) => {
+    if (!confirm(t.caddyDeleteConfirm || 'Are you sure you want to stop monitoring this Caddy site?')) return;
+    setCaddySites(prev => prev.filter(site => site.id !== id));
+    triggerNotification('success', 'Monitored Caddy site removed');
   };
 
   // Deletions
@@ -591,15 +1027,18 @@ export default function App() {
   // If user clicked administrative auth, load auth component
   if (isAdminMode && !authToken) {
     return (
-      <AuthScreen
-        onSuccess={handleLoginSuccess}
-        onBack={() => setIsAdminMode(false)}
-      />
+      <div className={isMonochrome ? 'is-monochrome' : ''}>
+        <AuthScreen
+          onSuccess={handleLoginSuccess}
+          onBack={() => setIsAdminMode(false)}
+          locale={locale}
+        />
+      </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 font-sans text-zinc-100 flex flex-col relative overflow-x-hidden selection:bg-sky-500 selection:text-white">
+    <div className={`min-h-screen bg-zinc-950 font-sans text-zinc-100 flex flex-col relative overflow-x-hidden selection:bg-sky-500 selection:text-white ${isMonochrome ? 'is-monochrome' : ''}`}>
       <div className="noise-overlay" />
       
       {/* INITIAL LOAD SCREEN */}
@@ -625,7 +1064,7 @@ export default function App() {
               <Cpu size={24} className="text-zinc-600" />
             </motion.div>
             <div className="flex flex-col items-center gap-2">
-              <span className="text-[10px] font-mono font-bold tracking-[0.4em] text-zinc-500 uppercase">Genesis Core</span>
+              <span className="text-[10px] font-mono font-bold tracking-[0.4em] text-zinc-500 uppercase">Orchestra Gateway</span>
               <div className="flex gap-1">
                 {[0, 1, 2].map((i) => (
                   <motion.div
@@ -655,7 +1094,7 @@ export default function App() {
             </div>
             <div>
               <span id="header-app-logo" className="text-xs font-mono font-bold tracking-wider text-white uppercase">
-                Genesis <span className="text-sky-500 font-sans font-light">Core</span>
+                Orchestra <span className="text-sky-500 font-sans font-light">Gateway</span>
               </span>
               <div className="text-[9px] font-mono text-zinc-500 flex items-center gap-1.5">
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping-slow" />
@@ -672,6 +1111,21 @@ export default function App() {
                   <span className="text-[8px] text-zinc-500 uppercase tracking-widest font-mono">ROOT DEPLOYER</span>
                 </div>
                 <button
+                  onClick={() => setLocale(locale === 'en' ? 'id' : 'en')}
+                  title="Ganti Bahasa / Toggle Language"
+                  className="px-2 h-7 rounded bg-zinc-900 border border-zinc-805 text-[9px] font-mono font-bold text-zinc-400 hover:text-sky-400 transition cursor-pointer"
+                >
+                  {locale.toUpperCase()}
+                </button>
+                <button
+                  onClick={() => setIsMonochrome(!isMonochrome)}
+                  title={t.monochromeToggle}
+                  className={`px-2 h-7 rounded border text-[9px] font-mono font-bold transition cursor-pointer flex items-center gap-1 ${isMonochrome ? 'bg-zinc-100 border-white text-zinc-950 hover:bg-zinc-200' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-sky-400'}`}
+                >
+                  <Contrast size={10} />
+                  <span>{isMonochrome ? 'MONO' : 'COLOR'}</span>
+                </button>
+                <button
                   id="btn-logout"
                   onClick={handleLogout}
                   title="Log out of Secure Session"
@@ -686,36 +1140,92 @@ export default function App() {
       </div>
       )}
 
-      {/* Global Status notifications */}
-      <AnimatePresence>
-        {(successMsg || errorMsg) && (
-          <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full px-4">
-            {successMsg && (
-              <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="p-3 rounded bg-zinc-900 border border-emerald-500/50 text-xs text-zinc-100 shadow-xl flex items-start gap-2 max-w-xs font-mono ml-auto"
-              >
-                <Check size={14} className="text-emerald-500 flex-shrink-0 mt-0.5" />
-                <span>{successMsg}</span>
-              </motion.div>
-            )}
+      {/* Dedicated Stacked Toast Notification Center Component */}
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full px-4 pointer-events-none items-end">
+        <AnimatePresence mode="popLayout">
+          {toasts.map((toast) => {
+            const isSuccess = toast.type === 'success';
+            const isError = toast.type === 'error';
+            const isWarning = toast.type === 'warning';
 
-            {errorMsg && (
+            return (
               <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="p-3 rounded bg-zinc-900 border border-red-500/50 text-xs text-zinc-100 shadow-xl flex items-start gap-2 max-w-xs font-mono ml-auto"
+                key={toast.id}
+                layout
+                initial={{ opacity: 0, y: 20, scale: 0.9, x: 30 }}
+                animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.85, x: 30, transition: { duration: 0.2 } }}
+                className={`pointer-events-auto p-3.5 rounded-xl bg-zinc-950/95 backdrop-blur-md border text-xs text-zinc-100 shadow-2xl flex items-start gap-3 w-80 font-mono relative overflow-hidden group hover:border-zinc-700 transition-colors ${
+                  isSuccess ? 'border-emerald-500/30 shadow-emerald-950/20' :
+                  isError ? 'border-red-500/30 shadow-red-950/20' :
+                  isWarning ? 'border-amber-500/30 shadow-amber-950/20' :
+                  'border-sky-500/30 shadow-sky-950/20'
+                }`}
               >
-                <AlertCircle size={14} className="text-red-500 flex-shrink-0 mt-0.5" />
-                <span>{errorMsg}</span>
+                {/* Visual Accent Left Edge Highlight */}
+                <div className={`absolute top-0 left-0 w-1 h-full ${
+                  isSuccess ? 'bg-emerald-500' :
+                  isError ? 'bg-red-500' :
+                  isWarning ? 'bg-amber-500' :
+                  'bg-sky-500'
+                }`} />
+
+                {/* Left status icon with glow/pulse background */}
+                <div className={`flex-shrink-0 mt-0.5 relative flex items-center justify-center h-5 w-5 rounded ${
+                  isSuccess ? 'bg-emerald-500/10 text-emerald-400' :
+                  isError ? 'bg-red-500/10 text-red-400' :
+                  isWarning ? 'bg-amber-500/10 text-amber-400' :
+                  'bg-sky-500/10 text-sky-400'
+                }`}>
+                  {isSuccess && <Check size={13} className="stroke-[2.5]" />}
+                  {isError && <AlertCircle size={13} className="stroke-[2.5]" />}
+                  {isWarning && <AlertTriangle size={13} className="stroke-[2.5]" />}
+                  {!isSuccess && !isError && !isWarning && <Activity size={13} className="stroke-[2.5] animate-pulse" />}
+                </div>
+
+                {/* Main Message Text content */}
+                <div className="flex-grow pr-4 break-all leading-normal select-text">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className={`text-[9px] uppercase font-bold tracking-wider ${
+                      isSuccess ? 'text-emerald-400' :
+                      isError ? 'text-red-400' :
+                      isWarning ? 'text-amber-400' :
+                      'text-sky-400'
+                    }`}>
+                      {isSuccess ? 'SUCCESS' : isError ? 'ERROR ALERT' : isWarning ? 'WARNING' : 'SYSTEM INFO'}
+                    </span>
+                  </div>
+                  <p className="text-zinc-200 text-[11px] leading-relaxed pr-1">{toast.text}</p>
+                </div>
+
+                {/* Individual Dismiss control button */}
+                <button
+                  onClick={() => removeToast(toast.id)}
+                  className="absolute top-2.5 right-2 text-zinc-500 hover:text-white transition-colors cursor-pointer p-0.5 rounded hover:bg-zinc-900"
+                  title="Dismiss notification"
+                >
+                  <X size={11} />
+                </button>
+
+                {/* Animated self-dismiss visual countdown progress bar */}
+                <div className="absolute bottom-0 left-0 h-[2px] bg-zinc-900/40 w-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: '100%' }}
+                    animate={{ width: '0%' }}
+                    transition={{ duration: isSuccess ? 3.5 : 5.0, ease: 'linear' }}
+                    className={`h-full ${
+                      isSuccess ? 'bg-emerald-500' :
+                      isError ? 'bg-red-500' :
+                      isWarning ? 'bg-amber-500' :
+                      'bg-sky-500'
+                    }`}
+                  />
+                </div>
               </motion.div>
-            )}
-          </div>
-        )}
-      </AnimatePresence>
+            );
+          })}
+        </AnimatePresence>
+      </div>
 
       {/* MAIN VIEW CONTROLLER */}
       <main className="flex-grow flex flex-col w-full">
@@ -728,17 +1238,17 @@ export default function App() {
             {/* Minimal Mobile friendly Subnav dashboard sidebar */}
             <div className="w-full lg:w-56 bg-zinc-950/60 p-3 flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-x-visible whitespace-nowrap scrollbar-none border-b lg:border-b-0 border-zinc-900">
               <div className="hidden lg:block px-2 pb-2 mb-2 border-b border-zinc-900">
-                <span className="text-[10px] text-zinc-500 font-mono tracking-widest block uppercase">ORCHESTRA SYSTEM</span>
-                <span className="text-xs text-white font-mono font-bold">Control Board</span>
+                <span className="text-[10px] text-zinc-500 font-mono tracking-widest block uppercase">ORCHESTRA</span>
+                <span className="text-xs text-white font-mono font-bold">{locale === 'id' ? 'Papan Pengendali' : 'Control Board'}</span>
               </div>
 
               {[
-                { id: 'monitor', label: 'Gateway Monitor', icon: Monitor },
-                { id: 'content', label: 'Landing Page CMS', icon: Sliders },
-                { id: 'nginx', label: 'Nginx VirtualHosts', icon: Globe },
-                { id: 'ddns', label: 'DDNS Synchronizer', icon: RefreshCw },
-                { id: 'ports', label: 'Port Ingress Tunnel', icon: Server },
-                { id: 'settings', label: 'Admin Settings', icon: Settings }
+                { id: 'monitor', label: t.monitorTab, icon: Monitor },
+                { id: 'content', label: t.contentTab, icon: Sliders },
+                { id: 'nginx', label: t.nginxTab, icon: Globe },
+                { id: 'ddns', label: t.ddnsTab, icon: RefreshCw },
+                { id: 'ports', label: t.portsTab, icon: Server },
+                { id: 'settings', label: t.settingsTab, icon: Sliders }
               ].map(tb => {
                 const Icon = tb.icon;
                 const active = activeAdminTab === tb.id;
@@ -782,33 +1292,214 @@ export default function App() {
                   >
                     {/* CADDY MONITORING SECTION */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <ResourceTile label="CPU Load" value={systemResources.cpu} color="#0ea5e9" />
-                      <ResourceTile label="RAM Usage" value={systemResources.ram} color="#8b5cf6" />
-                      <ResourceTile label="Disk Space" value={systemResources.disk} color="#10b981" />
+                      <ResourceTile label={t.cpuLoad} value={systemResources.cpu} color="#0ea5e9" threshold={cpuThreshold} warningMsg={t.highCpuWarn} />
+                      <ResourceTile label={t.ramUsage} value={systemResources.ram} color="#8b5cf6" threshold={ramThreshold} warningMsg={t.highRamWarn} />
+                      <ResourceTile label={t.diskSpace} value={systemResources.disk} color="#10b981" />
+                    </div>
+
+                    {/* GATEWAY MONITOR CONFIGURATION PANEL */}
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 shadow-neon space-y-3">
+                      <div className="flex items-center justify-between border-b border-zinc-850 pb-2">
+                        <div className="flex items-center gap-2">
+                          <Settings size={13} className="text-sky-450 drop-shadow-neon" />
+                          <h3 className="text-xs font-bold text-sky-400 uppercase tracking-widest">{t.monitorRules}</h3>
+                        </div>
+                        <span className="text-[8px] bg-zinc-950 text-zinc-500 border border-zinc-850 font-mono px-2 py-0.5 rounded uppercase">{t.adjustLimits}</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-[10px] font-mono">
+                        {/* CPU Limit Warning */}
+                        <div className="space-y-2 bg-zinc-950/60 p-2.5 rounded border border-zinc-850">
+                          <div className="flex justify-between items-center text-zinc-300">
+                            <span className="uppercase text-[8.5px] text-zinc-400 font-bold">{t.cpuAlertLimit}</span>
+                            <span className="text-sky-400 font-bold">{cpuThreshold}%</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="10" 
+                            max="100" 
+                            value={cpuThreshold} 
+                            onChange={(e) => {
+                              const v = parseInt(e.target.value);
+                              setCpuThreshold(v);
+                              localStorage.setItem('cpu_threshold', v.toString());
+                            }}
+                            className="w-full accent-cyan-400 bg-zinc-950 rounded-lg h-1.5 cursor-pointer animate-pulse"
+                          />
+                          <div className="flex items-center justify-between text-[8px] text-zinc-500 pt-1">
+                            <span>{t.setSim}</span>
+                            <div className="flex gap-1.55">
+                              <button 
+                                type="button"
+                                onClick={() => setSystemResources(prev => ({ ...prev, cpu: Math.min(100, Math.max(0, prev.cpu + 10)) }))} 
+                                className="text-sky-400 hover:text-sky-300 font-bold px-1.5 py-0.5 bg-zinc-900 rounded border border-zinc-800 text-[8px]"
+                              >
+                                +10%
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => setSystemResources(prev => ({ ...prev, cpu: Math.min(100, Math.max(0, prev.cpu - 10)) }))} 
+                                className="text-zinc-400 hover:text-white font-bold px-1.5 py-0.5 bg-zinc-900 rounded border border-zinc-800 text-[8px]"
+                              >
+                                -10%
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* RAM Limit Warning */}
+                        <div className="space-y-2 bg-zinc-950/60 p-2.5 rounded border border-zinc-850">
+                          <div className="flex justify-between items-center text-zinc-300">
+                            <span className="uppercase text-[8.5px] text-zinc-400 font-bold">{t.ramAlertLimit}</span>
+                            <span className="text-purple-400 font-bold">{ramThreshold}%</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="10" 
+                            max="100" 
+                            value={ramThreshold} 
+                            onChange={(e) => {
+                              const v = parseInt(e.target.value);
+                              setRamThreshold(v);
+                              localStorage.setItem('ram_threshold', v.toString());
+                            }}
+                            className="w-full accent-purple-400 bg-zinc-950 rounded-lg h-1.5 cursor-pointer animate-pulse"
+                          />
+                          <div className="flex items-center justify-between text-[8px] text-zinc-500 pt-1">
+                            <span>{t.setSim}</span>
+                            <div className="flex gap-1.5">
+                              <button 
+                                type="button"
+                                onClick={() => setSystemResources(prev => ({ ...prev, ram: Math.min(100, Math.max(0, prev.ram + 10)) }))} 
+                                className="text-purple-400 hover:text-purple-300 font-bold px-1.5 py-0.5 bg-zinc-900 rounded border border-zinc-800 text-[8px]"
+                              >
+                                +10%
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => setSystemResources(prev => ({ ...prev, ram: Math.min(100, Math.max(0, prev.ram - 10)) }))} 
+                                className="text-zinc-400 hover:text-white font-bold px-1.5 py-0.5 bg-zinc-900 rounded border border-zinc-800 text-[8px]"
+                              >
+                                -10%
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* RTT Latency warning threshold */}
+                        <div className="space-y-2 bg-zinc-950/60 p-2.5 rounded border border-zinc-850">
+                          <div className="flex justify-between items-center text-zinc-300">
+                            <span className="uppercase text-[8.5px] text-zinc-400 font-bold">{t.latencyAlertLimit}</span>
+                            <span className="text-orange-400 font-bold">{latencyThreshold} ms</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="2" 
+                            max="45" 
+                            value={latencyThreshold} 
+                            onChange={(e) => {
+                              const v = parseInt(e.target.value);
+                              setLatencyThreshold(v);
+                              localStorage.setItem('latency_threshold', v.toString());
+                            }}
+                            className="w-full accent-orange-400 bg-zinc-950 rounded-lg h-1.5 cursor-pointer animate-pulse"
+                          />
+                          <div className="flex items-center justify-between text-[8px] text-zinc-500 pt-1">
+                            <span className="text-[7.5px] leading-tight text-zinc-500 italic">{t.valuesAboveWarn}</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 shadow-neon">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-xs font-bold text-sky-400 uppercase tracking-widest">Caddy Proxy Telemetry</h3>
+                        <h3 className="text-xs font-bold text-sky-400 uppercase tracking-widest">{t.caddyTelemetry}</h3>
                         <div className="flex items-center gap-2">
-                          <button onClick={() => setIsCaddyModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1 bg-sky-500/10 border border-sky-500/30 rounded text-[10px] text-sky-400 hover:bg-sky-500/20">
-                            <Plus size={10} /> Easy Setup
+                          <button onClick={handleAddCaddyClick} className="flex items-center gap-1.5 px-2.5 py-1 bg-sky-500/10 border border-sky-500/30 rounded text-[10px] text-sky-400 hover:bg-sky-500/20 cursor-pointer transition">
+                            <Plus size={10} /> {t.easySetup}
                           </button>
                         </div>
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         {caddySites.map(site => (
-                          <div key={site.id} className="bg-zinc-950 p-3 rounded border border-zinc-800">
-                             <div className="flex items-center justify-between mb-2">
-                               <span className="text-[10px] font-bold text-white">{site.name}</span>
-                               <span className={`px-1.5 py-0.5 rounded text-[8px] ${site.status === 'up' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                                 {site.status.toUpperCase()}
-                               </span>
+                          <div key={site.id} className="bg-zinc-950/80 p-3.5 rounded-xl border border-zinc-800/80 hover:border-sky-500/20 transition-all duration-300 flex flex-col justify-between shadow-sm relative group overflow-hidden">
+                             {/* Subtle top reflection line */}
+                             <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-sky-500/10 to-transparent" />
+                             
+                             <div>
+                               <div className="flex items-center justify-between mb-2.5">
+                                 <div className="flex items-center gap-2 overflow-hidden">
+                                   {/* Pulsing Status Dot Beacon */}
+                                   <div className="relative flex h-2 w-2 flex-shrink-0">
+                                     <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${site.status === 'up' ? 'bg-emerald-400' : 'bg-red-400'}`}></span>
+                                     <span className={`relative inline-flex rounded-full h-2 w-2 ${site.status === 'up' ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                                   </div>
+                                   <span className="text-[10px] font-mono font-bold text-zinc-100 tracking-tight truncate" title={site.name}>{site.name}</span>
+                                 </div>
+                                 
+                                 {/* Edit/Delete Overlay */}
+                                 <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                                   <button 
+                                     onClick={() => handleEditCaddyClick(site)} 
+                                     className="p-1 rounded text-zinc-500 hover:text-sky-400 hover:bg-zinc-900 transition-colors cursor-pointer"
+                                     title={t.caddyEditTitle || "Edit site"}
+                                   >
+                                     <Edit3 size={10} />
+                                   </button>
+                                   <button 
+                                     onClick={() => handleDeleteCaddy(site.id)} 
+                                     className="p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-zinc-900 transition-colors cursor-pointer"
+                                     title="Delete site"
+                                   >
+                                     <Trash2 size={10} />
+                                   </button>
+                                 </div>
+                               </div>
+
+                               {/* Health Metrics & Gauges */}
+                               <div className="space-y-2 mb-1.5 text-[9px] font-mono">
+                                 {/* Uptime and value */}
+                                 <div className="flex items-center justify-between">
+                                   <span className="text-zinc-500">{t.caddyUptimeLabel || 'Uptime'}</span>
+                                   <span className={`font-bold ${site.status === 'up' ? 'text-emerald-400' : 'text-red-400'}`}>
+                                     {Number(site.uptime !== undefined ? site.uptime : 99.9).toFixed(3)}%
+                                   </span>
+                                 </div>
+
+                                 {/* Uptime track visualizer */}
+                                 <div className="w-full bg-zinc-900 rounded-full h-1 overflow-hidden relative border border-zinc-800/50">
+                                   <div 
+                                     className={`h-full rounded-full transition-all duration-500 ${site.status === 'up' ? 'bg-emerald-500' : 'bg-red-500'}`}
+                                     style={{ width: `${site.uptime !== undefined ? site.uptime : 99.9}%` }}
+                                   />
+                                 </div>
+
+                                 {/* Active CPU Load percentage */}
+                                 <div className="flex items-center justify-between">
+                                   <span className="text-zinc-500">{t.loadLabel}</span>
+                                   <span className="text-zinc-300 font-medium">{site.load}%</span>
+                                 </div>
+
+                                 {/* CPU visual load gauge */}
+                                 <div className="w-full bg-zinc-900 rounded-full h-1 overflow-hidden">
+                                   <div 
+                                     className="h-full rounded-full bg-cyan-500 transition-all duration-500"
+                                     style={{ width: `${site.load}%` }}
+                                   />
+                                 </div>
+                               </div>
                              </div>
-                             <div className="flex items-center justify-between text-[8px] text-zinc-500">
-                               <span>Load</span>
-                               <span>{site.load}%</span>
+
+                             {/* Heartbeat Status row */}
+                             <div className="mt-2 text-[8px] font-mono text-zinc-500 flex items-center justify-between border-t border-zinc-900/40 pt-2.5">
+                               <span className="flex items-center gap-1 text-[7.5px] uppercase tracking-wide">
+                                 <Activity size={9} className={site.status === 'up' ? 'text-emerald-500 animate-pulse' : 'text-zinc-600'} />
+                                 {t.caddyHeartbeat || 'Heartbeat'}
+                               </span>
+                               <span className="text-[7.5px] tabular-nums font-semibold text-zinc-400">
+                                 {getRelativeTime(site.lastHeartbeat)}
+                               </span>
                              </div>
                           </div>
                         ))}
@@ -817,23 +1508,26 @@ export default function App() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-                          <h3 className="text-xs font-bold text-zinc-300 uppercase mb-3">Deployment Checklist</h3>
-                          {['Update Caddy Config', 'Verify SSL Certs', 'Restart Nginx', 'Clear Logs'].map(item => (
+                          <h3 className="text-xs font-bold text-zinc-300 uppercase mb-3">{t.checklist}</h3>
+                          {(locale === 'id' 
+                            ? ['Perbarui Konfigurasi Caddy', 'Verifikasi Sertifikat SSL', 'Jalankan Ulang Nginx', 'Bersihkan Catatan Log']
+                            : ['Update Caddy Config', 'Verify SSL Certs', 'Restart Nginx', 'Clear Logs']
+                          ).map(item => (
                             <div key={item} className="flex items-center gap-2 text-[10px] text-zinc-400 mb-2">
                               <input type="checkbox" className="accent-sky-500" /> {item}
                             </div>
                           ))}
                       </div>
                       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-                          <h3 className="text-xs font-bold text-zinc-300 uppercase mb-3">Logs & Validator</h3>
+                          <h3 className="text-xs font-bold text-zinc-300 uppercase mb-3">{t.logsValidator}</h3>
                           <LogTerminal logs={appLogs} />
-                          <button className="mt-2 w-full text-[9px] uppercase py-1 bg-zinc-800 hover:bg-zinc-700">Validate Configs</button>
+                          <button className="mt-2 w-full text-[9px] uppercase py-1 bg-zinc-800 hover:bg-zinc-700 cursor-pointer">{t.validateConfigs}</button>
                       </div>
                     </div>
 
                     <div>
-                      <h2 className="text-sm font-semibold tracking-tight text-white font-mono uppercase">LIVE GATEWAY MONITOR & TUNNEL ROUTING</h2>
-                      <p className="text-[11px] text-zinc-500 font-mono text-xs">Secure administrative telemetries, reverse proxy hops & Cloudflare DDNS resolvers</p>
+                      <h2 className="text-sm font-semibold tracking-tight text-white font-mono uppercase">{t.liveTitle}</h2>
+                      <p className="text-[11px] text-zinc-500 font-mono text-xs">{t.liveSubtitle}</p>
                     </div>
 
                     {/* Network stats indicators */}
@@ -844,7 +1538,7 @@ export default function App() {
                           <User size={14} className="drop-shadow-neon" />
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest leading-none mb-0.5">Session Active</span>
+                          <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest leading-none mb-0.5">{t.sessionActive}</span>
                           <span className="text-xs font-bold text-white tracking-tight leading-none">{adminProfile?.fullName}</span>
                         </div>
                       </div>
@@ -853,40 +1547,40 @@ export default function App() {
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-red-950/40 border border-red-900/50 rounded-lg text-[10px] font-mono font-bold text-red-100 hover:bg-red-900 hover:text-white shadow-neon transition-all active:scale-95 cursor-pointer uppercase tracking-tight"
                       >
                         <LogOut size={12} className="drop-shadow-neon" />
-                        Terminate
+                        {t.terminate}
                       </button>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-3 text-center shadow-neon">
-                        <span className="text-[8px] text-zinc-500 block uppercase font-mono font-bold tracking-wider drop-shadow-neon">Dynamic Gateway</span>
+                        <span className="text-[8px] text-zinc-500 block uppercase font-mono font-bold tracking-wider drop-shadow-neon">{t.dynamicGateway}</span>
                         <span className="text-white text-xs font-mono font-bold block mt-1 truncate">180.244.131.25</span>
                       </div>
                       
                       <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-3 text-center shadow-neon">
-                        <span className="text-[8px] text-zinc-500 block uppercase font-mono font-bold tracking-wider drop-shadow-neon">Reverse Proxies</span>
+                        <span className="text-[8px] text-zinc-500 block uppercase font-mono font-bold tracking-wider drop-shadow-neon">{t.reverseProxies}</span>
                         <span className="text-cyan-400 text-xs font-mono font-bold block mt-1">
-                          {nginxConfigs.length > 0 ? `${nginxConfigs.length} Active` : 'VAIO CORE'}
+                          {nginxConfigs.length > 0 ? `${nginxConfigs.length} ${locale === 'id' ? 'Aktif' : 'Active'}` : 'VAIO CORE'}
                         </span>
                       </div>
 
                       <div className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-3 text-center shadow-neon">
-                        <span className="text-[8px] text-zinc-500 block uppercase font-mono font-bold tracking-wider drop-shadow-neon">Throughput</span>
+                        <span className="text-[8px] text-zinc-500 block uppercase font-mono font-bold tracking-wider drop-shadow-neon">{t.throughput}</span>
                         <span className="text-emerald-400 text-xs font-mono font-bold block mt-1">102.4 Mb/s</span>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 gap-3">
-                       <SystemMonitor />
-                       <VisitorAnalytics />
+                       <SystemMonitor locale={locale} />
+                       <VisitorAnalytics locale={locale} />
                     </div>
 
                     {/* Interactive Sandbox Tracer Circuit */}
                     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-3 shadow-[0_0_20px_rgba(56,189,248,0.05)] hover:shadow-[0_0_30px_rgba(56,189,248,0.15)] transition-all duration-500 relative overflow-hidden">
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="text-[10px] font-mono text-zinc-350 font-bold block uppercase tracking-wider">Interactive Trace Sandbox</span>
-                          <span className="text-[8px] font-mono text-zinc-500 uppercase block mt-0.5">Tap a registered node below to trace ingress hop packets</span>
+                          <span className="text-[10px] font-mono text-zinc-350 font-bold block uppercase tracking-wider">{t.terminalTitle}</span>
+                          <span className="text-[8px] font-mono text-zinc-500 uppercase block mt-0.5">{t.terminalSubtitle}</span>
                         </div>
                         <span className="text-[8px] bg-cyan-950/40 text-cyan-400 border border-cyan-800/40 px-1.5 py-0.5 rounded font-mono font-semibold">ACTIVE NODE TUNNEL</span>
                       </div>
@@ -897,8 +1591,8 @@ export default function App() {
                         <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f1f1f_1px,transparent_1px),linear-gradient(to_bottom,#1f1f1f_1px,transparent_1px)] bg-[size:10px_10px] opacity-20" />
                         
                         <div className="z-10 text-center flex flex-col items-center">
-                          <span className="w-2 h-2 rounded-full bg-cyan-500 animate-ping absolute shadow-neon" />
-                          <span className="w-2 h-2 rounded-full bg-cyan-400 z-20 shadow-neon" />
+                          <span className={`w-2 h-2 rounded-full ${latencyStats.isHigh ? 'bg-orange-500 animate-ping shadow-[0_0_8px_#f97316]' : 'bg-cyan-500 animate-ping shadow-neon'} absolute`} />
+                          <span className={`w-2 h-2 rounded-full ${latencyStats.isHigh ? 'bg-orange-400 shadow-[0_0_8px_#f97316]' : 'bg-cyan-400 shadow-neon'} z-20`} />
                           <span className="text-[7.5px] text-zinc-400 mt-1 uppercase tracking-wider drop-shadow-neon">Client Ingress</span>
                         </div>
 
@@ -907,25 +1601,26 @@ export default function App() {
                           <motion.div
                             animate={{ x: ['-100%', '100%'] }}
                             transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
-                            className="absolute top-0 bottom-0 w-8 bg-gradient-to-r from-transparent via-cyan-400 to-transparent"
+                            className={`absolute top-0 bottom-0 w-8 bg-gradient-to-r from-transparent ${latencyStats.isHigh ? 'via-orange-400' : 'via-cyan-400'} to-transparent`}
                           />
                         </div>
 
                         <div className="z-10 text-center flex flex-col items-center">
-                          <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse shadow-neon" />
-                          <span className="text-[7.5px] text-zinc-400 mt-1 uppercase tracking-wider drop-shadow-neon">Genesis Proxy</span>
+                          <span className={`w-2 h-2 rounded-full ${latencyStats.isHigh ? 'bg-orange-500 shadow-[0_0_8px_#f97316] animate-pulse' : 'bg-purple-500 shadow-neon animate-pulse'} z-20`} />
+                          <span className="text-[7.5px] text-zinc-400 mt-1 uppercase tracking-wider drop-shadow-neon">Orchestra Proxy</span>
                         </div>
 
+                        {/* Connection vector path */}
                         <div className="flex-1 mx-3 h-0.5 bg-zinc-800 relative z-0">
                           <motion.div
                             animate={{ x: ['-100%', '100%'] }}
                             transition={{ repeat: Infinity, duration: 2.2, ease: 'linear' }}
-                            className="absolute top-0 bottom-0 w-8 bg-gradient-to-r from-transparent via-cyan-400 to-transparent"
+                            className={`absolute top-0 bottom-0 w-8 bg-gradient-to-r from-transparent ${latencyStats.isHigh ? 'via-orange-400' : 'via-cyan-400'} to-transparent`}
                           />
                         </div>
 
                         <div className="z-10 text-center flex flex-col items-center">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className={`w-2 h-2 rounded-full ${latencyStats.isHigh ? 'bg-orange-400 shadow-[0_0_8px_#f97316] animate-pulse' : 'bg-emerald-500 animate-pulse'} z-20`} />
                           <span className="text-[7.5px] text-zinc-400 mt-1 uppercase tracking-wider">Target Module</span>
                         </div>
                       </div>
@@ -934,21 +1629,32 @@ export default function App() {
                       <div className="flex flex-wrap gap-1.5 py-1">
                         {projects.slice(0, 5).map((p) => {
                           const active = selectedTraceId === p.id;
+                          const currentRtt = projectLatencies[p.id];
+                          const isRouteHighLatency = currentRtt !== undefined && currentRtt > latencyThreshold;
                           return (
                             <button
                               key={p.id}
                               type="button"
                               onClick={() => {
                                 setSelectedTraceId(p.id);
-                                triggerPingTrace(p.title, p.link);
+                                triggerPingTrace(p.title, p.link, p.id);
                               }}
-                              className={`px-2.5 py-1.5 rounded border text-[10px] font-mono transition-all cursor-pointer ${
+                              className={`px-2.5 py-1.5 rounded border text-[10px] font-mono transition-all cursor-pointer flex items-center gap-1.5 ${
                                 active
-                                  ? 'bg-cyan-500/10 border-cyan-400 text-cyan-300'
-                                  : 'bg-zinc-950 border-zinc-850 text-zinc-400 hover:text-white hover:border-zinc-700'
+                                  ? isRouteHighLatency
+                                    ? 'bg-orange-500/10 border-orange-500 text-orange-400 shadow-[0_0_10px_rgba(249,115,22,0.15)] font-bold animate-pulse'
+                                    : 'bg-cyan-500/10 border-cyan-400 text-cyan-300'
+                                  : isRouteHighLatency
+                                    ? 'bg-orange-950/20 border-orange-700/60 text-orange-400 hover:text-white hover:border-orange-500'
+                                    : 'bg-zinc-950 border-zinc-850 text-zinc-400 hover:text-white hover:border-zinc-700'
                               }`}
                             >
-                              🚀 {p.title}
+                              <span>🚀 {p.title}</span>
+                              {currentRtt !== undefined && (
+                                <span className={`text-[8px] px-1 rounded-sm border ${isRouteHighLatency ? 'bg-orange-500/20 border-orange-500/40 text-orange-400 font-semibold' : 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400'}`}>
+                                  {currentRtt}ms
+                                </span>
+                              )}
                             </button>
                           );
                         })}
@@ -957,34 +1663,34 @@ export default function App() {
                       {/* Real-time Latency Stats */}
                       <div className="flex items-center justify-between px-1 mb-1">
                          <div className="flex items-center gap-4">
-                            <span className="text-[7px] text-zinc-500 uppercase font-mono tracking-widest">Performance Metrics</span>
+                            <span className="text-[7px] text-zinc-500 uppercase font-mono tracking-widest">{locale === 'id' ? 'Metrik Performa Jaringan' : 'Performance Metrics'}</span>
                             <button 
                               onClick={clearTraceHistory}
                               className="group/clear flex items-center gap-1 text-[7px] text-zinc-600 hover:text-red-400 transition-colors uppercase font-mono tracking-tighter"
                               title="Clear Trace History"
                             >
                                <Trash2 size={8} className="group-hover/clear:scale-110 transition-transform" />
-                               <span>Clear History</span>
+                               <span>{t.clearHistory}</span>
                             </button>
                          </div>
                          {latencyStats.isHigh && (
                             <div className="flex items-center gap-1 text-orange-500 animate-pulse">
                                <AlertTriangle size={8} className="drop-shadow-neon" />
-                               <span className="text-[7px] font-mono font-bold uppercase tracking-tighter">High Latency Detected</span>
+                               <span className="text-[7px] font-mono font-bold uppercase tracking-tighter">{t.highLatencyWarning}</span>
                             </div>
                          )}
                       </div>
                       <div className="grid grid-cols-3 gap-2 py-1">
                         <div className="bg-zinc-950/50 border border-zinc-800/80 rounded-lg p-2 text-center group/stat hover:border-cyan-500/30 transition-colors">
-                           <span className="text-[7px] text-zinc-500 uppercase block font-mono tracking-widest mb-0.5 group-hover/stat:text-cyan-500 transition-colors">Min Latency</span>
+                           <span className="text-[7px] text-zinc-500 uppercase block font-mono tracking-widest mb-0.5 group-hover/stat:text-cyan-500 transition-colors">{t.minLatency}</span>
                            <span className="text-xs font-mono font-bold text-sky-400 drop-shadow-neon">{latencyStats.min}ms</span>
                         </div>
                         <div className="bg-zinc-950/50 border border-zinc-800/80 rounded-lg p-2 text-center group/stat hover:border-emerald-500/30 transition-colors">
-                           <span className="text-[7px] text-zinc-500 uppercase block font-mono tracking-widest mb-0.5 group-hover/stat:text-emerald-500 transition-colors">Avg Latency</span>
+                           <span className="text-[7px] text-zinc-500 uppercase block font-mono tracking-widest mb-0.5 group-hover/stat:text-emerald-500 transition-colors">{t.avgLatency}</span>
                            <span className="text-xs font-mono font-bold text-emerald-400 drop-shadow-neon">{latencyStats.avg}ms</span>
                         </div>
                         <div className={`bg-zinc-950/50 border rounded-lg p-2 text-center group/stat transition-colors ${latencyStats.isHigh ? 'border-orange-500/40' : 'border-zinc-800/80 hover:border-orange-500/30'}`}>
-                           <span className="text-[7px] text-zinc-500 uppercase block font-mono tracking-widest mb-0.5 group-hover/stat:text-orange-500 transition-colors">Max Latency</span>
+                           <span className="text-[7px] text-zinc-500 uppercase block font-mono tracking-widest mb-0.5 group-hover/stat:text-orange-500 transition-colors">{t.maxLatency}</span>
                            <span className="text-xs font-mono font-bold text-orange-400 drop-shadow-neon">{latencyStats.max}ms</span>
                         </div>
                       </div>
@@ -1244,8 +1950,8 @@ export default function App() {
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <h2 className="text-sm font-semibold tracking-tight text-white font-mono">NGINX REVERSE PROXY MANAGER</h2>
-                        <p className="text-[11px] text-zinc-500 font-mono">Configure custom routing domains, load-balanced upstreams, and Certbot certificates</p>
+                        <h2 className="text-sm font-semibold tracking-tight text-white font-mono">{t.nginxManager}</h2>
+                        <p className="text-[11px] text-zinc-500 font-mono">{t.nginxSub}</p>
                       </div>
                       <button
                         onClick={() => {
@@ -1263,7 +1969,7 @@ export default function App() {
                         }}
                         className="flex items-center gap-1 px-2.5 py-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded text-xs font-mono text-sky-400 cursor-pointer"
                       >
-                        <Plus size={12} /> New VirtualHost
+                        <Plus size={12} /> {t.newVHost}
                       </button>
                     </div>
 
@@ -1276,11 +1982,11 @@ export default function App() {
                               <div className="flex items-center gap-2">
                                 <span className="font-mono text-xs font-bold text-white">{config.domainName}</span>
                                 {config.sslEnabled && (
-                                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-mono">SSL Termination</span>
+                                  <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-mono">{t.sslTermination}</span>
                                 )}
                               </div>
                               <p className="text-[10px] text-zinc-400 font-mono mt-0.5">
-                                Maps to: <strong className="text-zinc-200">{config.isLoadBalanced ? 'Internal Upstream Cluster' : config.targetUrl}</strong>
+                                {t.mapsTo} <strong className="text-zinc-200">{config.isLoadBalanced ? (locale === 'id' ? 'Kluster Server Hulu Internal' : 'Internal Upstream Cluster') : config.targetUrl}</strong>
                               </p>
                             </div>
                             <div className="flex items-center gap-1.5 self-end sm:self-auto">
@@ -1289,13 +1995,13 @@ export default function App() {
                                   setEditingNginx(config);
                                   setIsNginxModalOpen(true);
                                 }}
-                                className="px-2 py-1 rounded bg-zinc-950 border border-zinc-800 text-[10px] font-mono text-sky-400 hover:text-sky-300 transition"
+                                className="px-2 py-1 rounded bg-zinc-950 border border-zinc-800 text-[10px] font-mono text-sky-400 hover:text-sky-300 transition cursor-pointer"
                               >
-                                Edit vHost
+                                {t.editVHost}
                               </button>
                               <button
                                 onClick={() => handleDeleteNginx(config.id)}
-                                className="p-1 rounded bg-zinc-950 border border-zinc-800 text-zinc-500 hover:text-red-400 transition"
+                                className="p-1 rounded bg-zinc-950 border border-zinc-800 text-zinc-500 hover:text-red-400 transition cursor-pointer"
                               >
                                 <Trash2 size={11} />
                               </button>
@@ -1305,12 +2011,12 @@ export default function App() {
                           {/* Upstreams cluster nodes if load balanced */}
                           {config.isLoadBalanced && config.upstreams.length > 0 && (
                             <div className="mb-3 p-2 bg-zinc-950/80 border border-zinc-800 rounded">
-                              <div className="text-[9px] text-zinc-500 font-mono uppercase tracking-wider mb-1">Multi-Node Upstream Target Groups</div>
+                              <div className="text-[9px] text-zinc-500 font-mono uppercase tracking-wider mb-1">{t.multiNodeUpstream}</div>
                               <div className="space-y-1">
                                 {config.upstreams.map((node, i) => (
                                   <div key={i} className="text-[10px] font-mono text-zinc-300 flex items-center gap-2">
                                     <CornerDownRight size={10} className="text-zinc-500" />
-                                    <span>Node {i + 1}: <strong className="text-white bg-zinc-900 border border-zinc-800 px-1 py-0.5 rounded text-[8px]">{node}</strong></span>
+                                    <span>{t.nodeLabel} {i + 1}: <strong className="text-white bg-zinc-900 border border-zinc-800 px-1 py-0.5 rounded text-[8px]">{node}</strong></span>
                                   </div>
                                 ))}
                               </div>
@@ -1319,8 +2025,8 @@ export default function App() {
 
                           {/* Raw virtual block output code generated for Nginx */}
                           <div className="bg-zinc-950 p-2.5 rounded border border-zinc-800 font-mono text-[10px] text-zinc-400 overflow-x-auto max-h-32 leading-relaxed">
-                            <span className="text-[9px] text-zinc-600 block border-b border-zinc-900 pb-1 mb-1 font-sans font-bold">GENERATED CONFIGURED TEMPLATE BLOCK</span>
-                            <pre className="whitespace-pre">{config.lastGeneratedContent || '# Virtual Host Content Stale'}</pre>
+                            <span className="text-[9px] text-zinc-600 block border-b border-zinc-900 pb-1 mb-1 font-sans font-bold">{t.generatedTemplate}</span>
+                            <pre className="whitespace-pre">{config.lastGeneratedContent || (locale === 'id' ? '# Konten VirtualHost Belum Diperbarui' : '# Virtual Host Content Stale')}</pre>
                           </div>
                         </div>
                       ))}
@@ -1338,8 +2044,8 @@ export default function App() {
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <h2 className="text-sm font-semibold tracking-tight text-white font-mono">BUILT-IN DDNS RESOLVER</h2>
-                        <p className="text-[11px] text-zinc-500 font-mono">Synchronize dynamically updated home server WAN address into Cloudflare Zones</p>
+                        <h2 className="text-sm font-semibold tracking-tight text-white font-mono">{t.ddnsResolver}</h2>
+                        <p className="text-[11px] text-zinc-500 font-mono">{t.ddnsSub}</p>
                       </div>
                       <div className="flex gap-2">
                         <button
@@ -1348,7 +2054,7 @@ export default function App() {
                           className="flex items-center gap-1.5 px-3 py-1 bg-sky-500 hover:bg-sky-400 text-zinc-950 rounded text-xs font-mono font-semibold transition cursor-pointer"
                         >
                           <RefreshCw size={12} className={isSyncingDdns ? 'animate-spin' : ''} />
-                          <span>{isSyncingDdns ? 'Syncing...' : 'Force DDNS Check'}</span>
+                          <span>{isSyncingDdns ? t.syncing : t.forceCheck}</span>
                         </button>
                         <button
                           onClick={() => {
@@ -1364,7 +2070,7 @@ export default function App() {
                           }}
                           className="flex items-center gap-1 px-2.5 py-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded text-xs font-mono text-sky-400 cursor-pointer"
                         >
-                          <Plus size={12} /> New Record
+                          <Plus size={12} /> {t.newRecord}
                         </button>
                       </div>
                     </div>
@@ -1373,9 +2079,11 @@ export default function App() {
                       {ddnsConfigs.map(cfg => (
                         <div key={cfg.id} className="bg-zinc-900 border border-zinc-800 rounded p-4 shadow-[0_0_20px_rgba(56,189,248,0.05)] hover:shadow-[0_0_30px_rgba(56,189,248,0.15)] transition-all duration-500">
                           <div className="flex items-center justify-between mb-3">
-                            <span className="text-[10px] uppercase font-mono tracking-widest text-zinc-500">PROVIDER: {cfg.provider}</span>
-                            <div className="flex items-center gap-2">
-                               <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[9px] font-mono">{cfg.status}</span>
+                            <span className="text-[10px] uppercase font-mono tracking-widest text-zinc-500">{t.provider}: {cfg.provider}</span>
+                            <div className="flex items-center justify-between gap-2">
+                               <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[9px] font-mono">
+                                 {cfg.status === 'Syncing' ? (locale === 'id' ? 'Sinkronisasi...' : 'Syncing') : (locale === 'id' ? 'Sukses' : 'Success')}
+                               </span>
                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 shadow-neon">
                                   <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
                                   <span className="text-[8px] font-mono font-bold text-zinc-400 uppercase tracking-tighter">
@@ -1387,17 +2095,17 @@ export default function App() {
 
                           <div className="space-y-2 mb-4">
                             <div>
-                              <span className="text-[9px] text-zinc-500 font-mono uppercase block">Target Resolving Domain</span>
-                              <span className="text-xs text-white font-mono font-bold font-mono">{cfg.domainName}</span>
+                              <span className="text-[9px] text-zinc-500 font-mono uppercase block">{t.targetResolvingDomain}</span>
+                              <span className="text-xs text-white font-mono font-bold">{cfg.domainName}</span>
                             </div>
 
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <span className="text-[9px] text-zinc-500 font-mono uppercase block">WAN IP Bind</span>
-                                <span className="text-xs text-amber-400 font-mono font-mono">{cfg.lastDetectedIp}</span>
+                                <span className="text-[9px] text-zinc-500 font-mono uppercase block">{t.wanIpBind}</span>
+                                <span className="text-xs text-amber-400 font-mono">{cfg.lastDetectedIp}</span>
                               </div>
                               <div>
-                                <span className="text-[9px] text-zinc-500 font-mono uppercase block">Last Heartbeat Checked</span>
+                                <span className="text-[9px] text-zinc-500 font-mono uppercase block">{t.lastHeartbeatChecked}</span>
                                 <span className="text-[10px] text-zinc-400 font-mono">{new Date(cfg.lastUpdated).toLocaleTimeString()}</span>
                               </div>
                             </div>
@@ -1406,16 +2114,16 @@ export default function App() {
                           <div className="border-t border-zinc-800/80 pt-3 flex justify-end gap-1.5">
                             <button
                               onClick={() => {
-                                setEditingDdns(cfg);
-                                setIsDdnsModalOpen(true);
+                                  setEditingDdns(cfg);
+                                  setIsDdnsModalOpen(true);
                               }}
-                              className="px-2.5 py-1 rounded bg-zinc-950 border border-zinc-800 text-[10px] text-zinc-300 hover:text-sky-400 font-mono transition"
+                              className="px-2.5 py-1 rounded bg-zinc-950 border border-zinc-800 text-[10px] text-zinc-300 hover:text-sky-400 font-mono transition cursor-pointer"
                             >
-                              Edit Profile
+                              {t.editProfile}
                             </button>
                             <button
                               onClick={() => handleDeleteDdns(cfg.id)}
-                              className="p-1 px-2 rounded bg-zinc-950 border border-zinc-800 text-zinc-500 hover:text-red-400 transition"
+                              className="p-1 px-2 rounded bg-zinc-950 border border-zinc-800 text-zinc-500 hover:text-red-400 transition cursor-pointer"
                             >
                               <Trash2 size={11} />
                             </button>
@@ -1436,8 +2144,8 @@ export default function App() {
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <h2 className="text-sm font-semibold tracking-tight text-white font-mono">PORT INGRESS & WEBHOOK MAPPINGS</h2>
-                        <p className="text-[11px] text-zinc-500 font-mono">Expose port mappings to inspect real-time webhooks (e.g. GitHub trigger payload)</p>
+                        <h2 className="text-sm font-semibold tracking-tight text-white font-mono">{t.portMappingsTitle}</h2>
+                        <p className="text-[11px] text-zinc-500 font-mono">{t.portMappingsSub}</p>
                       </div>
                       <button
                         onClick={() => {
@@ -1454,7 +2162,7 @@ export default function App() {
                         }}
                         className="flex items-center gap-1 px-2.5 py-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded text-xs font-mono text-sky-400 cursor-pointer"
                       >
-                        <Plus size={12} /> Add Rule
+                        <Plus size={12} /> {t.addRule}
                       </button>
                     </div>
 
@@ -1467,12 +2175,12 @@ export default function App() {
                               <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono ${
                                 pf.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-zinc-800 text-zinc-500'
                               }`}>
-                                {pf.status}
+                                {pf.status === 'Active' ? (locale === 'id' ? 'Aktif' : 'Active') : (locale === 'id' ? 'Mati' : 'Inactive')}
                               </span>
                             </div>
 
                             <div className="bg-zinc-950 p-2 rounded border border-zinc-800 flex items-center justify-center gap-2 mb-3 font-mono text-[11px]">
-                              <span className="text-zinc-500">EXPOSED PORT</span>
+                              <span className="text-zinc-500">{t.exposedPort}</span>
                               <strong className="text-amber-400 font-bold">: {pf.incomingPort}</strong>
                               <ChevronRight size={12} className="text-zinc-500" />
                               <span className="text-sky-400">{pf.localAddress} : {pf.localPort}</span>
@@ -1480,8 +2188,8 @@ export default function App() {
 
                             {pf.webhookEnabled && (
                               <div className="p-2 rounded bg-zinc-950 border border-zinc-800 text-[10px] font-mono tracking-wide">
-                                <div className="text-zinc-500 text-[8px] uppercase tracking-wider mb-1">Target Webhook Listener URL</div>
-                                <div className="text-sky-300 truncate">{pf.webhookUrl || 'Not specified'}</div>
+                                <div className="text-zinc-500 text-[8px] uppercase tracking-wider mb-1">{t.targetWebhookUrl}</div>
+                                <div className="text-sky-300 truncate">{pf.webhookUrl || t.notSpecified}</div>
                               </div>
                             )}
                           </div>
@@ -1493,7 +2201,7 @@ export default function App() {
                                 disabled={isTestingWebhook}
                                 className="px-2 py-1 rounded bg-sky-500 hover:bg-sky-400 text-zinc-950 text-[10px] font-mono font-bold transition flex items-center gap-1 cursor-pointer"
                               >
-                                {isTestingWebhook ? 'Delivering...' : 'Simulate Ping'}
+                                {isTestingWebhook ? t.delivering : t.simulatePing}
                               </button>
                             ) : (
                               <div />
@@ -1505,13 +2213,13 @@ export default function App() {
                                   setEditingPort(pf);
                                   setIsPortModalOpen(true);
                                 }}
-                                className="px-2 py-1 rounded bg-zinc-950 border border-zinc-800 text-[10px] font-mono text-zinc-300 hover:text-sky-400 transition"
+                                className="px-2 py-1 rounded bg-zinc-950 border border-zinc-800 text-[10px] font-mono text-zinc-300 hover:text-sky-400 transition cursor-pointer"
                               >
-                                Edit Rule
+                                {t.addRule}
                               </button>
                               <button
                                 onClick={() => handleDeletePort(pf.id)}
-                                className="p-1 px-1.5 rounded bg-zinc-950 border border-zinc-800 text-zinc-500 hover:text-red-400 transition"
+                                className="p-1 px-1.5 rounded bg-zinc-950 border border-zinc-800 text-zinc-500 hover:text-red-400 transition cursor-pointer"
                               >
                                 <Trash2 size={11} />
                               </button>
@@ -1532,60 +2240,15 @@ export default function App() {
                     className="space-y-4 font-mono text-xs"
                   >
                     <div>
-                      <h2 className="text-sm font-semibold tracking-tight text-white font-mono uppercase">Admin Settings</h2>
-                      <p className="text-[11px] text-zinc-500 font-mono text-xs">Update your administrative credentials.</p>
+                      <h2 className="text-sm font-semibold tracking-tight text-white font-mono uppercase">{t.generalSettings}</h2>
+                      <p className="text-[11px] text-zinc-500 font-mono text-xs">{t.generalSettingsSub}</p>
                     </div>
-
-                    <div className="bg-zinc-900 border border-zinc-800 rounded p-4 space-y-4 shadow-[0_0_20px_rgba(56,189,248,0.05)]">
-                      <div>
-                        <label className="block text-[10px] uppercase text-zinc-500 mb-1">New Username</label>
-                        <input
-                          type="text"
-                          value={settingsUsername}
-                          onChange={(e) => setSettingsUsername(e.target.value)}
-                          placeholder="admin"
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] uppercase text-zinc-500 mb-1">New Password</label>
-                        <input
-                          type="password"
-                          value={settingsPassword}
-                          onChange={(e) => setSettingsPassword(e.target.value)}
-                          placeholder="••••••••"
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] uppercase text-zinc-500 mb-1">Google Analytics Measurement ID</label>
-                        <input
-                          type="text"
-                          value={localStorage.getItem('ga_measurement_id') || ''}
-                          onChange={(e) => localStorage.setItem('ga_measurement_id', e.target.value)}
-                          placeholder="G-XXXXXXXXXX"
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] uppercase text-zinc-500 mb-1">Latency Alert Threshold (ms)</label>
-                        <input
-                          type="number"
-                          value={latencyThreshold}
-                          onChange={(e) => setLatencyThreshold(parseInt(e.target.value) || 0)}
-                          placeholder="12"
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs font-mono text-white"
-                        />
-                      </div>
-                      <button
-                        onClick={() => triggerNotification('success', 'Admin settings updated (Simulated)')}
-                        className="px-3 py-1.5 bg-sky-500 hover:bg-sky-400 text-zinc-950 rounded text-[11px] font-bold cursor-pointer"
-                      >
-                        Save Settings
-                      </button>
-                    </div>
+                    <GeneralSettingsPanel username={settingsUsername} password={settingsPassword} onUsernameChange={setSettingsUsername} onPasswordChange={setSettingsPassword} onSave={saveGeneralSettings} t={t} />
                   </motion.div>
                 )}
+                
+
+
               </AnimatePresence>
             </div>
           </div>
@@ -1601,7 +2264,7 @@ export default function App() {
               
               {/* LEFT COLUMN: HERO & IDENTITY */}
               <div className="lg:col-span-12 xl:col-span-8 flex flex-col gap-6">
-                <TacticalPanel title="IDENTITY MONITOR" footer="AUTHENTICITY VERIFIED">
+                <TacticalPanel title={t.identityMonitor} footer={t.authenticityVerified}>
                   <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
                     <div className="relative group">
                       <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-center text-sky-500 overflow-hidden relative">
@@ -1616,7 +2279,7 @@ export default function App() {
                     <div className="space-y-4 flex-1">
                       <div>
                         <div className="flex items-center gap-3 mb-1">
-                           <span className="text-[10px] font-mono font-bold text-sky-500 tracking-[0.3em] uppercase">Origin Node</span>
+                           <span className="text-[10px] font-mono font-bold text-sky-500 tracking-[0.3em] uppercase">{t.originNode}</span>
                            <div className="h-[1px] flex-1 bg-sky-500/20" />
                         </div>
                         <h1 className="text-4xl md:text-6xl font-bold text-white tracking-tighter font-display">
@@ -1630,11 +2293,11 @@ export default function App() {
                       <div className="flex flex-wrap gap-4 pt-2">
                         <div className="flex items-center gap-2 px-3 py-1 bg-zinc-950 border border-zinc-800 rounded-md shadow-neon">
                            <Activity size={12} className="text-emerald-500 drop-shadow-neon" />
-                           <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest drop-shadow-neon">Load: OPTIMIZED</span>
+                           <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest drop-shadow-neon">{t.loadOptimized}</span>
                         </div>
                         <div className="flex items-center gap-2 px-3 py-1 bg-zinc-950 border border-zinc-800 rounded-md shadow-neon">
                            <Shield size={12} className="text-sky-500 drop-shadow-neon" />
-                           <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest drop-shadow-neon">Sec: ENCRYPTED</span>
+                           <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest drop-shadow-neon">{t.secEncrypted}</span>
                         </div>
                       </div>
                     </div>
@@ -1678,11 +2341,11 @@ export default function App() {
 
               {/* RIGHT COLUMN: SYSTEM STATUS & ANALYTICS */}
               <div className="lg:col-span-12 xl:col-span-4 flex flex-col gap-6">
-                <TacticalPanel title="SYSTEM TELEMETRY">
+                <TacticalPanel title={t.networkTelemetry}>
                    <div className="space-y-6">
                       <div className="space-y-3">
                          <div className="flex justify-between items-end">
-                            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Network Throughput</span>
+                            <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">{t.networkThroughput}</span>
                             <span className="text-xs font-mono text-sky-400">92%</span>
                          </div>
                          <div className="h-1 bg-zinc-950 border border-zinc-800 rounded-full overflow-hidden">
@@ -1696,11 +2359,11 @@ export default function App() {
 
                       <div className="grid grid-cols-2 gap-4">
                          <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-lg">
-                            <span className="text-[8px] font-mono text-zinc-500 uppercase tracking-[0.2em] block mb-1">Ping</span>
+                            <span className="text-[8px] font-mono text-zinc-500 uppercase tracking-[0.2em] block mb-1">{t.ping}</span>
                             <span className="text-lg font-mono font-bold text-zinc-200">12ms</span>
                          </div>
                          <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-lg">
-                            <span className="text-[8px] font-mono text-zinc-500 uppercase tracking-[0.2em] block mb-1">Nodes</span>
+                            <span className="text-[8px] font-mono text-zinc-500 uppercase tracking-[0.2em] block mb-1">{t.nodes}</span>
                             <span className="text-lg font-mono font-bold text-zinc-200">08</span>
                          </div>
                       </div>
@@ -1708,22 +2371,24 @@ export default function App() {
                       <div className="p-4 bg-sky-500/5 border border-sky-500/20 rounded-xl space-y-2 shadow-neon">
                          <div className="flex items-center gap-2 text-sky-500">
                             <RefreshCw size={12} className="animate-spin-slow drop-shadow-neon" />
-                            <span className="text-[10px] font-mono font-bold uppercase tracking-widest drop-shadow-neon">Live Sync Alpha</span>
+                            <span className="text-[10px] font-mono font-bold uppercase tracking-widest drop-shadow-neon">{t.liveSync}</span>
                          </div>
                          <p className="text-[10px] text-zinc-500 leading-relaxed font-mono">
-                            Heartbeat detected. Synced with global node mesh 2026.05.22
+                            {locale === 'id' 
+                              ? 'Koneksi aman terdeteksi. Berhasil tersinkronisasi dengan jaringan global.' 
+                              : 'Heartbeat detected. Synced with global node mesh.'}
                          </p>
                       </div>
                    </div>
                 </TacticalPanel>
 
-                <TacticalPanel title="TRAFFIC ANALYSIS">
+                <TacticalPanel title={t.trafficAnalysis}>
                    <div className="py-2">
-                      <VisitorAnalytics />
+                      <VisitorAnalytics locale={locale} />
                    </div>
                 </TacticalPanel>
 
-                <TacticalPanel title="CONNECTIVITY">
+                <TacticalPanel title={t.connectivity}>
                    <div className="flex flex-wrap gap-3">
                     {links.filter(l => l.isActive).map((link) => (
                       <motion.a
@@ -1750,7 +2415,7 @@ export default function App() {
                         onClick={() => setIsAdminMode(true)}
                         className="text-[9px] font-mono text-zinc-800 hover:text-zinc-600 transition-colors uppercase tracking-[0.3em] cursor-pointer text-left"
                       >
-                        Launch Admin Console
+                        {t.launchAdmin}
                       </button>
                    </div>
                    <div className="flex items-center gap-2">
@@ -1763,9 +2428,17 @@ export default function App() {
                        </button>
                        <button 
                           onClick={() => setLocale(locale === 'en' ? 'id' : 'en')}
-                          className="px-3 py-1 bg-zinc-950 border border-zinc-800 rounded font-mono text-[9px] text-zinc-400 hover:text-sky-400 transition-all uppercase"
+                          className="px-3 py-1 bg-zinc-950 border border-zinc-800 rounded font-mono text-[9px] text-zinc-400 hover:text-sky-400 transition-all uppercase cursor-pointer"
                        >
                           {locale.toUpperCase()}
+                       </button>
+                       <button 
+                          onClick={() => setIsMonochrome(!isMonochrome)}
+                          title={t.monochromeToggle}
+                          className={`px-3 py-1 border rounded font-mono text-[9px] transition-all uppercase flex items-center gap-1 cursor-pointer ${isMonochrome ? 'bg-zinc-100 border-white text-zinc-950' : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-sky-400'}`}
+                       >
+                          <Contrast size={10} />
+                          <span>{isMonochrome ? 'Mono' : 'Color'}</span>
                        </button>
                    </div>
                 </div>
@@ -1802,7 +2475,7 @@ export default function App() {
                     type="text"
                     value={editingProject.title || ''}
                     onChange={e => setEditingProject({...editingProject, title: e.target.value})}
-                    placeholder="e.g. Genesis Port"
+                    placeholder="e.g. Orchestra Port"
                     className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-white placeholder-zinc-700"
                     required
                   />
@@ -1826,7 +2499,7 @@ export default function App() {
                     type="url"
                     value={editingProject.link || ''}
                     onChange={e => setEditingProject({...editingProject, link: e.target.value})}
-                    placeholder="https://genesis.vaio"
+                    placeholder="https://orchestra.vaio"
                     className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-white placeholder-zinc-700 font-mono"
                     required
                   />
@@ -1916,7 +2589,7 @@ export default function App() {
                     type="text"
                     value={editingNginx.domainName || ''}
                     onChange={e => setEditingNginx({...editingNginx, domainName: e.target.value})}
-                    placeholder="e.g. genesis.vaio"
+                    placeholder="e.g. orchestra.vaio"
                     className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-white placeholder-zinc-700"
                     required
                   />
@@ -2082,6 +2755,28 @@ export default function App() {
                   />
                 </div>
 
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <label className="block text-[10px] text-zinc-400 uppercase mb-1">Check Frequency (min)</label>
+                    <input
+                      type="number"
+                      value={editingDdns.checkFrequency || 15}
+                      onChange={e => setEditingDdns({...editingDdns, checkFrequency: parseInt(e.target.value) || 15})}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-white"
+                      min="1"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 pt-5">
+                    <input
+                      type="checkbox"
+                      checked={editingDdns.enabled ?? true}
+                      onChange={e => setEditingDdns({...editingDdns, enabled: e.target.checked})}
+                      className="w-4 h-4 bg-zinc-950 border border-zinc-800 rounded"
+                    />
+                    <label className="text-[10px] text-zinc-400 uppercase">Enabled</label>
+                  </div>
+                </div>
+
                 {editingDdns.provider === 'Cloudflare' && (
                   <div>
                     <label className="block text-[10px] text-zinc-400 uppercase mb-1">Zone Identifier (optional)</label>
@@ -2226,6 +2921,94 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* CADDY SERVICE CONFIG MODAL */}
+      <AnimatePresence>
+        {isCaddyModalOpen && editingCaddy && (
+          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-zinc-90 w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded p-4 relative font-mono text-xs"
+            >
+              <div className="flex items-center justify-between pb-2 mb-3 border-b border-zinc-800">
+                <span className="font-bold text-white uppercase">{editingCaddy.id ? (t.caddyEditTitle || 'EDIT CADDY SERVICE') : (t.caddyAddTitle || 'ADD CADDY SERVICE')}</span>
+                <button onClick={() => { setIsCaddyModalOpen(false); setEditingCaddy(null); }} className="text-zinc-500 hover:text-white"><X size={14} /></button>
+              </div>
+
+              <form onSubmit={handleSaveCaddySubmit} className="space-y-3">
+                <div>
+                  <label className="block text-[10px] text-zinc-400 uppercase mb-1">{t.caddyDomainLabel || 'Target Site Domain URL'}</label>
+                  <input
+                    type="text"
+                    value={editingCaddy.name || ''}
+                    onChange={e => setEditingCaddy({...editingCaddy, name: e.target.value})}
+                    placeholder="app.vaio.internal"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-white placeholder-zinc-700"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] text-zinc-400 uppercase mb-1">{t.caddyUptimeLabel || 'Uptime (%)'}</label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      max="100"
+                      value={editingCaddy.uptime !== undefined ? editingCaddy.uptime : 99.9}
+                      onChange={e => setEditingCaddy({...editingCaddy, uptime: parseFloat(e.target.value) || 100})}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-zinc-400 uppercase mb-1">{t.caddyHeartbeat || 'Heartbeat State'}</label>
+                    <select
+                      value={editingCaddy.status || 'up'}
+                      onChange={e => setEditingCaddy({...editingCaddy, status: e.target.value as any})}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-white"
+                    >
+                      <option value="up">Active / UP</option>
+                      <option value="down">Inactive / DOWN</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-zinc-400 uppercase mb-1">{t.caddyLoadLabel || 'Simulated Node Load (%)'}</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={editingCaddy.load !== undefined ? editingCaddy.load : 10}
+                    onChange={e => setEditingCaddy({...editingCaddy, load: parseInt(e.target.value) || 0})}
+                    className="w-full accent-cyan-500 bg-zinc-950 rounded-lg h-1.5 cursor-pointer mt-2"
+                  />
+                  <div className="text-[10px] text-zinc-500 text-right mt-1 font-mono">{editingCaddy.load || 0}%</div>
+                </div>
+
+                <div className="pt-2 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setIsCaddyModalOpen(false); setEditingCaddy(null); }}
+                    className="px-3 py-1.5 rounded bg-zinc-950 border border-zinc-800 text-zinc-400 cursor-pointer"
+                  >
+                    Abort
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-3.5 py-1.5 bg-sky-500 hover:bg-sky-400 text-zinc-950 font-bold rounded cursor-pointer"
+                  >
+                    {t.caddySaveBtn || 'Commit Monitored Site'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* DOCUMENTATION MODAL (Scaled Up Version) */}
       <AnimatePresence>
         {isDocsModalOpen && (
@@ -2258,35 +3041,35 @@ export default function App() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-6">
                     <section>
-                      <h3 className="text-[10px] font-mono font-bold text-sky-500 uppercase tracking-widest mb-3 border-b border-zinc-800 pb-1">01. Dynamic VHost Engine</h3>
+                      <h3 className="text-[10px] font-mono font-bold text-sky-500 uppercase tracking-widest mb-3 border-b border-zinc-800 pb-1">{docsContent.sec1Title}</h3>
                       <p className="text-xs text-zinc-400 leading-relaxed font-sans">
-                        Managing high-performance Nginx virtual environments using a unified template generator. Supports upstream clustering for multi-node load balanced target groups.
+                        {docsContent.sec1Body}
                       </p>
                       <ul className="mt-2 space-y-1.5">
                         <li className="text-[10px] font-mono text-zinc-500 flex items-center gap-2">
                           <Check size={10} className="text-emerald-500" />
-                          Template-based config generation
+                          {docsContent.sec1Item1}
                         </li>
                         <li className="text-[10px] font-mono text-zinc-500 flex items-center gap-2">
                           <Check size={10} className="text-emerald-500" />
-                          Upstream node health orchestration
+                          {docsContent.sec1Item2}
                         </li>
                       </ul>
                     </section>
 
                     <section>
-                      <h3 className="text-[10px] font-mono font-bold text-sky-500 uppercase tracking-widest mb-3 border-b border-zinc-800 pb-1">02. Deployment Pre-flight</h3>
+                      <h3 className="text-[10px] font-mono font-bold text-sky-500 uppercase tracking-widest mb-3 border-b border-zinc-800 pb-1">{docsContent.sec2Title}</h3>
                       <p className="text-xs text-zinc-400 leading-relaxed font-sans mb-3">
-                        Verifies local environment readiness before production deployment.
+                        {docsContent.sec2Body}
                       </p>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-[9px] font-mono bg-zinc-950 p-2 rounded">
-                          <span>Caddy Binary</span>
-                          <span className="text-emerald-500">READY</span>
+                          <span>{docsContent.sec2Item1}</span>
+                          <span className="text-emerald-500">{docsContent.sec2Status}</span>
                         </div>
                         <div className="flex items-center justify-between text-[9px] font-mono bg-zinc-950 p-2 rounded">
-                          <span>Nginx Ingress</span>
-                          <span className="text-emerald-500">READY</span>
+                          <span>{docsContent.sec2Item2}</span>
+                          <span className="text-emerald-500">{docsContent.sec2Status}</span>
                         </div>
                       </div>
                     </section>
@@ -2294,27 +3077,27 @@ export default function App() {
 
                   <div className="space-y-6">
                     <section>
-                      <h3 className="text-[10px] font-mono font-bold text-sky-500 uppercase tracking-widest mb-3 border-b border-zinc-800 pb-1">03. Ingress Tunneling</h3>
+                      <h3 className="text-[10px] font-mono font-bold text-sky-500 uppercase tracking-widest mb-3 border-b border-zinc-800 pb-1">{docsContent.sec3Title}</h3>
                       <p className="text-xs text-zinc-400 leading-relaxed font-sans">
-                        Expose internal local services to the public mesh through secure ingress rules. Includes baked-in webhook receiver inspection for deployment automation.
+                        {docsContent.sec3Body}
                       </p>
                       <div className="mt-4 p-3 bg-zinc-950 rounded-lg border border-zinc-800 font-mono text-[9px]">
-                        <div className="text-zinc-600 mb-1 font-bold underline italic">Security Note:</div>
-                        <p className="text-zinc-500">All tunnels are proxied through a dynamic gateway mesh with mandatory SSL termination at the edge.</p>
+                        <div className="text-zinc-600 mb-1 font-bold underline italic">{docsContent.sec3NoteTitle}</div>
+                        <p className="text-zinc-500">{docsContent.sec3NoteBody}</p>
                       </div>
                     </section>
 
                     <section>
-                      <h3 className="text-[10px] font-mono font-bold text-sky-500 uppercase tracking-widest mb-3 border-b border-zinc-800 pb-1">04. Monitoring Tools</h3>
+                      <h3 className="text-[10px] font-mono font-bold text-sky-500 uppercase tracking-widest mb-3 border-b border-zinc-800 pb-1">{docsContent.sec4Title}</h3>
                       <p className="text-xs text-zinc-400 leading-relaxed font-sans">
-                        Real-time visitor telemetry, network throughput analytics, and interactive trace sandboxes for performance debugging and latency analysis.
+                        {docsContent.sec4Body}
                       </p>
                     </section>
                   </div>
                 </div>
 
                 <div className="mt-8 pt-6 border-t border-zinc-800 text-center">
-                  <p className="text-[10px] font-mono text-zinc-500">GENESIS CORE v2026.05.22 ALPHA-BUILD — DESIGNED & ENGINEERED BY ARDY SYAFII</p>
+                  <p className="text-[10px] font-mono text-zinc-500">{docsContent.footer}</p>
                 </div>
               </div>
             </motion.div>

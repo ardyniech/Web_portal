@@ -66,6 +66,8 @@ export interface DDNSConfig {
   lastDetectedIp: string;
   status: 'Syncing' | 'Active' | 'Failed';
   lastUpdated: string;
+  checkFrequency?: number;
+  enabled?: boolean;
 }
 
 export interface PortForward {
@@ -79,6 +81,15 @@ export interface PortForward {
   status: 'Active' | 'Inactive';
 }
 
+export interface CaddySite {
+  id: string;
+  name: string;
+  status: 'up' | 'down';
+  load: number;
+  uptime: number;
+  lastHeartbeat: string;
+}
+
 export interface DatabaseState {
   users: Record<string, string>; // username -> hashed_password (or plain if dev, but we will use custom hashing)
   profiles: Record<string, User>;
@@ -89,4 +100,10 @@ export interface DatabaseState {
   nginxConfigs: NginxConfig[];
   ddnsConfigs: DDNSConfig[];
   portForwards: PortForward[];
+}
+
+export interface ToastItem {
+  id: string;
+  type: 'success' | 'error' | 'info' | 'warning';
+  text: string;
 }

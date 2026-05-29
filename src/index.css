@@ -43,3 +43,190 @@
   pointer-events: none;
   z-index: 50;
 }
+
+/* ==========================================
+   HIGH-CONTRAST MONOCHROME (PAPER WITH VIBRANT COLOR ACCENTS)
+   ========================================== */
+
+/* Outer app container & overall background wrapper */
+.is-monochrome {
+  background-color: #ffffff !important;
+  color: #09090b !important;
+}
+
+/* Remove dark radial gradients from page backgrounds */
+.is-monochrome .absolute.inset-0.bg-\[radial-gradient\(_ellipse_at_top\,_var\(--tw-gradient-stops\)\)\] {
+  background: #fafafa !important;
+  background-image: none !important;
+}
+
+/* Neutral off-white page sections and layouts */
+.is-monochrome .bg-zinc-950,
+.is-monochrome .bg-zinc-900,
+.is-monochrome .bg-zinc-900\/55,
+.is-monochrome .bg-zinc-900\/50,
+.is-monochrome .bg-zinc-900\/40,
+.is-monochrome .bg-zinc-950\/60,
+.is-monochrome .bg-zinc-950\/80,
+.is-monochrome .bg-zinc-950\/50 {
+  background-color: #fcfcfc !important;
+  color: #09090b !important;
+}
+
+/* Container cards transition to crisp white background layouts */
+.is-monochrome .bg-zinc-900\/40,
+.is-monochrome .bg-zinc-950,
+.is-monochrome .bg-zinc-900,
+.is-monochrome .bg-zinc-900\/50 {
+  background-color: #ffffff !important;
+  border-color: #e4e4e7 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Inner nested areas (e.g. terminal sections, code blocks, activity log monitors) transition to a clean light grey print style */
+.is-monochrome .bg-zinc-950 .bg-zinc-950,
+.is-monochrome .bg-zinc-900 .bg-zinc-950,
+.is-monochrome .bg-zinc-950 .bg-zinc-900,
+.is-monochrome .bg-zinc-900 .bg-zinc-900,
+.is-monochrome .bg-zinc-950\/40 {
+  background-color: #f4f4f5 !important;
+  color: #181c24 !important;
+}
+
+/* Dynamic sub-nav sidebar or active panel controls */
+.is-monochrome .w-full.lg\:w-56.bg-zinc-950\/60 {
+  background-color: #fafafa !important;
+  border-color: #e4e4e7 !important;
+}
+
+/* Input boxes, Textareas, and Dropdown Select lists */
+.is-monochrome input,
+.is-monochrome textarea,
+.is-monochrome select {
+  background-color: #ffffff !important;
+  color: #09090b !important;
+  border-color: #d4d4d8 !important;
+}
+.is-monochrome input::placeholder,
+.is-monochrome textarea::placeholder {
+  color: #8c8c8c !important;
+}
+
+/* Thin outlines, divider lines, and borders mapping to light paper line cuts */
+.is-monochrome .border-zinc-800,
+.is-monochrome .border-zinc-805,
+.is-monochrome .border-zinc-800\/80,
+.is-monochrome .border-zinc-800\/50,
+.is-monochrome .border-zinc-900,
+.is-monochrome .border-zinc-800\/80,
+.is-monochrome .divide-zinc-900,
+.is-monochrome .divide-zinc-805,
+.is-monochrome .divide-zinc-800 {
+  border-color: #e4e4e7 !important;
+}
+
+/* Typography map: Convert greyed-out microcopy to rich readable print grays */
+.is-monochrome .text-zinc-100,
+.is-monochrome .text-zinc-200,
+.is-monochrome .text-white {
+  color: #09090b !important; /* Rich Dark Charcoal */
+}
+.is-monochrome .text-zinc-300 {
+  color: #18181b !important; /* Zinc 900 */
+}
+.is-monochrome .text-zinc-400 {
+  color: #3f3f46 !important; /* Zinc 700 */
+}
+.is-monochrome .text-zinc-500 {
+  color: #52525b !important; /* Zinc 600 */
+}
+.is-monochrome .text-zinc-600 {
+  color: #71717a !important; /* Zinc 500 */
+}
+
+/* ACCENTS PRESERVATION & READABILITY HARDENING (KEEP COLORS & ANIMATIONS IN LIVING STATE) */
+
+/* Sky-blue identifiers & primary action highlights */
+.is-monochrome .text-sky-400,
+.is-monochrome .text-sky-500 {
+  color: #0284c7 !important; /* Robust readable blue on light background */
+}
+.is-monochrome .hover\:text-sky-400:hover {
+  color: #0369a1 !important;
+}
+.is-monochrome .bg-sky-500\/10,
+.is-monochrome .bg-sky-500\/20 {
+  background-color: rgba(2, 132, 199, 0.08) !important;
+}
+
+/* Green vibrant trackers (Active Sync status, OK statuses, SSL termination) */
+.is-monochrome .text-emerald-400,
+.is-monochrome .text-emerald-500 {
+  color: #16a34a !important; /* High contrast energetic green */
+}
+.is-monochrome .bg-emerald-500\/10 {
+  background-color: rgba(22, 163, 74, 0.08) !important;
+}
+
+/* Red vital signs (Down nodes, deleted rules, connection blocks) */
+.is-monochrome .text-red-400,
+.is-monochrome .text-red-500 {
+  color: #dc2626 !important; /* Vibrant urgent red */
+}
+.is-monochrome .bg-red-500\/10 {
+  background-color: rgba(220, 38, 38, 0.08) !important;
+}
+
+/* Orange/Amber alerts (Pending Sync, Syncing state, logs warnings) */
+.is-monochrome .text-amber-400,
+.is-monochrome .text-amber-500 {
+  color: #ea580c !important; /* High visibility warm amber */
+}
+.is-monochrome .bg-amber-500\/10 {
+  background-color: rgba(234, 88, 12, 0.08) !important;
+}
+
+/* Cyan sub-channels & statistics tracker highlights */
+.is-monochrome .text-cyan-400,
+.is-monochrome .text-cyan-500 {
+  color: #0891b2 !important;
+}
+.is-monochrome .bg-cyan-500\/10 {
+  background-color: rgba(8, 145, 178, 0.08) !important;
+}
+
+/* Active solid color charts, dynamic bars, and loading states */
+.is-monochrome .bg-sky-500 {
+  background-color: #0ea5e9 !important; /* Keep sky progress bar glowing color */
+}
+.is-monochrome .bg-emerald-500 {
+  background-color: #10b981 !important; /* Keep emerald progress bar glowing color */
+}
+.is-monochrome .bg-red-500 {
+  background-color: #ef4444 !important; /* Keep red progress bar glowing color */
+}
+.is-monochrome .bg-zinc-800 {
+  background-color: #e4e4e7 !important; /* Inactive channels take clean grey */
+}
+
+/* Shadows and glow properties conversion to lightweight paper-bloom values */
+.is-monochrome .shadow-neon,
+.is-monochrome .shadow-neon-strong {
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.06) !important;
+}
+.is-monochrome .drop-shadow-neon {
+  filter: drop-shadow(0 0 4px rgba(2, 132, 199, 0.25)) !important;
+}
+
+/* Checkboxes & form accessories styling */
+.is-monochrome .accent-sky-500 {
+  accent-color: #0ea5e9 !important;
+}
+
+/* Custom interactive item hover highlight rules to look premium in light theme */
+.is-monochrome .hover\:bg-zinc-800\/40:hover,
+.is-monochrome .hover\:bg-zinc-900\/50:hover,
+.is-monochrome .hover\:bg-zinc-900:hover {
+  background-color: #f4f4f5 !important;
+}
+

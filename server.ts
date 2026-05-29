@@ -2,10 +2,25 @@ import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { DbStore } from './src/dbStore';
-
 const db = new DbStore();
 const app = express();
 const PORT = 3000;
+
+// Periodic DDNS check
+setInterval(async () => {
+  const ddnsConfigs = db.getDdnsConfigs();
+  for (const config of ddnsConfigs) {
+    if (config.enabled) {
+      const lastUpdated = new Date(config.lastUpdated).getTime();
+      const frequencyMs = config.checkFrequency * 60 * 1000;
+      if (Date.now() - lastUpdated > frequencyMs) {
+        console.log(`[DDNS] Syncing ${config.domainName}...`);
+        // Simulate sync
+        db.updateDdnsConfig(config.id, { lastDetectedIp: '180.244.' + Math.floor(Math.random() * 255) + '.' + Math.floor(Math.random() * 255) });
+      }
+    }
+  }
+}, 60000); // Check every minute
 
 app.use(express.json());
 
@@ -25,6 +40,11 @@ const requireAuth = (req: Request, res: Response, next: NextFunction) => {
   (req as any).username = username;
   next();
 };
+
+// Report endpoint
+app.post('/api/admin/report-status', requireAuth, (req: Request, res: Response) => {
+  res.json({ ok: true });
+});
 
 // --- AUTH API ---
 app.post('/api/auth/register', (req: Request, res: Response) => {
@@ -316,7 +336,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Genesis Server] Running on http://0.0.0.0:${PORT}`);
+    console.log(`[Orchestra Server] Running on http://0.0.0.0:${PORT}`);
   });
 }
 

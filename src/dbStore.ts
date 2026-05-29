@@ -3,7 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { DatabaseState, HeroContent, Project, SocialLink, NginxConfig, DDNSConfig, PortForward } from './types';
 
-// Let's store DB in current working directory as genesis_db.json
+// Let's store DB in current working directory as orchestra_db.json
 const DB_FILE_PATH = path.join(process.cwd(), 'orchestra_db.json');
 
 // Simple crypto utilities
@@ -17,7 +17,7 @@ export function generateToken(): string {
 
 const DEFAULT_STATE: DatabaseState = {
   users: {
-    // default password is 'admin' or 'genesis2026'
+    // default password is 'admin' or 'orchestra2026'
     admin: hashPassword('admin123')
   },
   profiles: {
@@ -41,9 +41,9 @@ const DEFAULT_STATE: DatabaseState = {
   projects: [
     {
       id: 'proj_1',
-      title: 'Genesis Web Canvas',
+      title: 'Orchestra Web Canvas',
       description: 'Elegant, ultra-fast, and distraction-free portfolio with custom interactive modules.',
-      link: 'https://genesis.vaio',
+      link: 'https://orchestra.vaio',
       iconName: 'Sparkles',
       category: 'Core',
       isActive: true
@@ -100,7 +100,7 @@ const DEFAULT_STATE: DatabaseState = {
   nginxConfigs: [
     {
       id: 'nginx_1',
-      domainName: 'genesis.vaio',
+      domainName: 'orchestra.vaio',
       targetUrl: 'http://127.0.0.1:3000',
       sslEnabled: true,
       sslType: 'Certbot',
@@ -133,7 +133,9 @@ const DEFAULT_STATE: DatabaseState = {
       zoneId: 'cf_zone_e3b0c44298fc1c149afbf4c8996fb924',
       lastDetectedIp: '180.244.131.25',
       status: 'Active',
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
+      checkFrequency: 15,
+      enabled: true
     }
   ],
   portForwards: [
@@ -177,6 +179,11 @@ export class DbStore {
           ...parsed,
           users: { ...DEFAULT_STATE.users, ...parsed.users },
           profiles: { ...DEFAULT_STATE.profiles, ...parsed.profiles },
+          ddnsConfigs: (parsed.ddnsConfigs || []).map((d: any) => ({
+            ...d,
+            checkFrequency: d.checkFrequency || 15,
+            enabled: typeof d.enabled === 'boolean' ? d.enabled : true
+          })),
           sessions: parsed.sessions || {}
         };
       }
@@ -458,7 +465,7 @@ export class DbStore {
     upstreams: string[],
     directives?: string
   ): string {
-    let conf = `# Genesis Auto-Generated Nginx Virtual Host Config\n`;
+    let conf = `# Orchestra Auto-Generated Nginx Virtual Host Config\n`;
     
     if (loadBalanced && upstreams.length > 0) {
       conf += `upstream app_cluster_${domain.replace(/[^a-zA-Z0-9]/g, '_')} {\n`;

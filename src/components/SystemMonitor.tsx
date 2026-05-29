@@ -11,10 +11,13 @@ const data = [
   { name: '10:30', load: 50 },
 ];
 
-export function SystemMonitor() {
+export function SystemMonitor({ locale = 'id' }: { locale?: 'en' | 'id' }) {
+  const isId = locale === 'id';
   return (
     <div className="bg-zinc-950 border border-zinc-900 rounded-lg p-5 shadow-[0_0_15px_rgba(14,165,233,0.05)]">
-      <h3 className="text-zinc-400 text-xs font-mono mb-4 uppercase tracking-wider">Gateway Load (ms)</h3>
+      <h3 className="text-zinc-400 text-xs font-mono mb-4 uppercase tracking-wider">
+        {isId ? 'Beban Komputer Gateway (ms)' : 'Gateway Load (ms)'}
+      </h3>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data}>
