@@ -41,7 +41,7 @@ import { AuthScreen } from './components/AuthScreen';
 import { SystemMonitor } from './components/SystemMonitor';
 import { VisitorAnalytics } from './components/VisitorAnalytics';
 import {
-  fetchPublicContent,
+  fetchPublicContent, fetchProjectStatus,
   fetchAdminConfigs,
   updateHeroContent,
   addProject,
@@ -59,6 +59,8 @@ import {
   addPortForward,
   updatePortForward,
   deletePortForward,
+  fetchListeningPorts,
+  fetchSecurityStatus,
   logoutUser
 } from './utils/api';
 import { HeroContent, Project, SocialLink, NginxConfig, DDNSConfig, PortForward, CaddySite, ToastItem } from './types';
@@ -197,7 +199,10 @@ export default function App() {
     ctaUrl: '/projects'
   });
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectStatusMap, setProjectStatusMap] = useState<Record<string, boolean>>({});
   const [links, setLinks] = useState<SocialLink[]>([]);
+  // Search filter for project cards
+  const [searchQuery, setSearchQuery] = useState('');
   
 // Admin only configs
   const [nginxConfigs, setNginxConfigs] = useState<NginxConfig[]>([]);
@@ -223,6 +228,8 @@ export default function App() {
 
   const [ddnsConfigs, setDdnsConfigs] = useState<DDNSConfig[]>([]);
   const [portForwards, setPortForwards] = useState<PortForward[]>([]);
+  const [listeningPorts, setListeningPorts] = useState<any[]>([]);
+  const [securityStatus, setSecurityStatus] = useState<any>(null);
   
   // New State for Upgrades
   const [systemResources, setSystemResources] = useState({ cpu: 15, ram: 42, disk: 68 });
@@ -720,6 +727,18 @@ export default function App() {
       const data = await fetchPublicContent();
       setHero(data.hero);
       setProjects(data.projects);
+      // Fetch online/offline status for each project
+      try {
+        const statusRes = await fetchProjectStatus();
+        const map: Record<string, boolean> = {};
+        statusRes.statuses.forEach(s => { map[s.id] = s.online; });
+        setProjectStatusMap(map);
+      } catch (e) {
+        console.error('Failed to fetch project statuses', e);
+        // fallback: assume online
+        const fallback = Object.fromEntries(data.projects.map(p => [p.id, true]));
+        setProjectStatusMap(fallback);
+      }
       setLinks(data.links);
     } catch (e) {
       console.error('Error loading public data:', e);
@@ -739,6 +758,11 @@ export default function App() {
       setNginxConfigs(data.nginxConfigs);
       setDdnsConfigs(data.ddnsConfigs);
       setPortForwards(data.portForwards);
+      const portsRes = await fetchListeningPorts(authToken);
+      setListeningPorts(portsRes.ports);
+      const secRes = await fetchSecurityStatus(authToken);
+      setSecurityStatus(secRes);
+
     } catch (e) {
       console.error('Session expired or error loading admin configs:', e);
       handleLogout();
@@ -1297,7 +1321,56 @@ export default function App() {
                       <ResourceTile label={t.diskSpace} value={systemResources.disk} color="#10b981" />
                     </div>
 
-                    {/* GATEWAY MONITOR CONFIGURATION PANEL */}
+                      {/* GATEWAY MONITOR CONFIGURATION PANEL */}
+                      {/* Port Usage Card */}
+                      <div className="bg-zinc-900 border border-zinc-800 rounded p-4 mt-4 shadow-neon">
+                        <h3 className="text-xs font-bold text-sky-400 uppercase mb-2">Port yang Digunakan</h3>
+                        <ul className="list-disc list-inside space-y-1 text-[10px] text-zinc-300">
+                          {portForwards.map(pf => (
+                            <li key={pf.id}>
+                              {pf.name}: {pf.incomingPort} → {pf.localAddress}:{pf.localPort} {pf.status === 'Active' ? '(ON)' : '(OFF)'}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                    {/* Semua Port Aktif Card */}
+                    <div className="bg-zinc-900 border border-zinc-800 rounded p-4 mt-4 shadow-neon">
+                      <h3 className="text-xs font-bold text-sky-400 uppercase mb-2">Semua Port Aktif</h3>
+                      <ul className="list-disc list-inside space-y-1 text-[10px] text-zinc-300">
+                        {listeningPorts.map(p => (
+                          <li key={p.protocol + p.port}>
+                            {p.protocol}/{p.state} {p.address}:{p.port}{p.process && ` (proc: ${p.process})`}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Port Publik Ter-Expose Card */}
+                    <div className="bg-zinc-900 border border-zinc-800 rounded p-4 mt-4 shadow-neon">
+                      <h3 className="text-xs font-bold text-sky-400 uppercase mb-2">Port Publik Ter‑Expose</h3>
+                      <ul className="list-disc list-inside space-y-1 text-[10px] text-zinc-300">
+                        {portForwards.map(pf => (
+                          <li key={pf.id}>Incoming {pf.incomingPort} → {pf.localAddress}:{pf.localPort}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Security Status Card */}
+                    <div className="bg-zinc-900 border border-zinc-800 rounded p-4 mt-4 shadow-neon">
+                      <h3 className="text-xs font-bold text-sky-400 uppercase mb-2">Keamanan Port</h3>
+                      {securityStatus && securityStatus.insecurePorts && securityStatus.insecurePorts.length > 0 ? (
+                        <ul className="list-disc list-inside space-y-1 text-[10px] text-red-400">
+                          {securityStatus.insecurePorts.map((p:any) => (
+                            <li key={p.protocol + p.port}>
+                              {p.protocol.toUpperCase()}/{p.port} ({p.address}) – {p.reason}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-[10px] text-green-400">Tidak ada port publik yang berisiko.</p>
+                      )}
+                    </div>
                     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 shadow-neon space-y-3">
                       <div className="flex items-center justify-between border-b border-zinc-850 pb-2">
                         <div className="flex items-center gap-2">
@@ -1892,6 +1965,15 @@ export default function App() {
                         </button>
                       </div>
 
+                      <div className="flex items-center mb-2">
+                        <input
+                          type="text"
+                          placeholder="Cari proyek..."
+                          value={searchQuery}
+                          onChange={e => setSearchQuery(e.target.value)}
+                          className="flex-1 bg-zinc-900 border border-zinc-800 text-zinc-200 px-2 py-1 text-sm rounded focus:outline-none focus:border-sky-500"
+                        />
+                      </div>
                       <div className="overflow-x-auto border border-zinc-900 rounded bg-zinc-900/60">
                         <table className="w-full text-left border-collapse font-mono text-xs text-zinc-300">
                           <thead>
@@ -1904,14 +1986,14 @@ export default function App() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-zinc-900">
-                            {projects.map(proj => (
+                            {projects.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase())).map(proj => (
                               <tr key={proj.id} className="hover:bg-zinc-900/40">
                                 <td className="p-2 font-bold text-white max-w-[120px] truncate">{proj.title}</td>
                                 <td className="p-2 text-zinc-400 truncate max-w-[200px] hidden sm:table-cell">{proj.description}</td>
                                 <td className="p-2 text-zinc-400 text-[10px]"><span className="px-1.5 py-0.5 rounded bg-zinc-950 border border-zinc-800">{proj.category}</span></td>
                                 <td className="p-2">
-                                  <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] ${proj.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}`}>
-                                    {proj.isActive ? 'Active' : 'Inactive'}
+                                  <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] ${projectStatusMap[proj.id] ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                                    {projectStatusMap[proj.id] ? 'ONLINE' : 'OFFLINE'}
                                   </span>
                                 </td>
                                 <td className="p-2 text-right space-x-1">

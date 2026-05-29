@@ -96,6 +96,20 @@ app.get('/api/auth/me', requireAuth, (req: Request, res: Response) => {
 });
 
 // --- PUBLIC API (FOR LANDING PAGE) ---
+
+// Project status check (online/offline)
+app.get('/api/public/project-status', async (req: Request, res: Response) => {
+  const projects = db.getProjects().filter(p => p.isActive);
+  const statuses = await Promise.all(projects.map(async p => {
+    try {
+      const resp = await fetch(p.link, { method: 'HEAD', timeout: 3000 });
+      return { id: p.id, online: resp.ok };
+    } catch (e) {
+      return { id: p.id, online: false };
+    }
+  }));
+  res.json({ statuses });
+});
 app.get('/api/public/content', (req: Request, res: Response) => {
   const hero = db.getHero();
   const projects = db.getProjects().filter(p => p.isActive);
@@ -302,6 +316,58 @@ app.delete('/api/admin/portforward/:id', requireAuth, (req: Request, res: Respon
     return;
   }
   res.json({ message: 'Port forwarding entry deleted successfully.' });
+});
+
+// Listening ports detection (admin)
+app.get('/api/admin/listening-ports', requireAuth, async (req: Request, res: Response) => {
+  const { exec } = await import('child_process');
+  exec('ss -tuln -p', (error, stdout, stderr) => {
+    if (error) {
+      console.error('Error fetching ports:', error);
+      res.status(500).json({ error: 'Failed to retrieve listening ports' });
+      return;
+    }
+    const lines = stdout.split('\n').slice(1).filter(l => l.trim());
+    const ports = lines.map(line => {
+      const parts = line.trim().split(/\s+/);
+      const [protocol, state, , , local, , proc] = parts;
+      const addrPort = local.startsWith('[') ? local.replace(']', '').split(']:') : local.split(':');
+      const address = addrPort[0];
+      const port = addrPort[1] || '';
+      const processInfo = proc ? proc.replace('users:', '').trim() : '';
+      const exposed = address === '0.0.0.0' || address === '::';
+      return { protocol, state, address, port, process: processInfo, exposed };
+    });
+    res.json({ ports });
+  });
+});
+
+// Security status (admin)
+app.get('/api/admin/security-status', requireAuth, async (req: Request, res: Response) => {
+  const { exec } = await import('child_process');
+  exec('ss -tuln -p', (error, stdout, stderr) => {
+    if (error) {
+      console.error('Error fetching security status:', error);
+      res.status(500).json({ error: 'Failed to retrieve security status' });
+      return;
+    }
+    const lines = stdout.split('\n').slice(1).filter(l => l.trim());
+    const insecurePorts = [];
+    const checks = lines.map(line => {
+      const parts = line.trim().split(/\s+/);
+      const [protocol, state, , , local, , proc] = parts;
+      const addrPort = local.startsWith('[') ? local.replace(']', '').split(']:') : local.split(':');
+      const address = addrPort[0];
+      const port = addrPort[1] || '';
+      const exposed = address === '0.0.0.0' || address === '::';
+      // Simple insecure criteria: exposed & port in common insecure list
+      const insecureList = ['22', '80', '8080', '443'];
+      if (exposed && insecureList.includes(port)) {
+        insecurePorts.push({ protocol, port, address, reason: 'Common insecure port exposed publicly' });
+      }
+    });
+    res.json({ insecurePorts, totalExposed: insecurePorts.length });
+  });
 });
 
 

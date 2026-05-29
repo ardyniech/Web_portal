@@ -1,0 +1,184 @@
+{
+  "users": {
+    "admin": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
+    "testuser": "13d249f2cb4127b40cfa757866850278793f814ded3c587fe5889e889a7a9f6c"
+  },
+  "profiles": {
+    "admin": {
+      "id": "admin",
+      "email": "admin@vaio.net",
+      "username": "admin",
+      "fullName": "Ardy Syafii",
+      "bio": "Fullstack Systems Engineer and Network Infrastructure Developer.",
+      "avatarUrl": ""
+    },
+    "testuser": {
+      "id": "testuser",
+      "email": "test@example.com",
+      "username": "testuser",
+      "fullName": "Test User",
+      "bio": "Infrastructure and applications developer."
+    }
+  },
+  "sessions": {
+    "4754bab445bdbaf7fb2a91d964ca170d7ec135597b4c184d8785ea891b1bbe30": "testuser",
+    "bd38dccf9bc4f4680fffb48aab549956565e01f9c4a12d41b931d4361487b891": "admin",
+    "a76dbd1c62ba648c220e5280ad2501d91c2743662cb099a52345e950f06142b2": "admin",
+    "79c5a6620e957bfed55f536e386b3a2472c8df4a0f99e28bc99c99f9e8d74643": "admin",
+    "1aa2d3436191c60e03ec4773d55d72c7348f73332008280edcdbb3023c0ff966": "admin"
+  },
+  "hero": {
+    "title": "Ardy Syafii",
+    "subtitle": "Dynamic Systems Architect & Network Solutions Eng.",
+    "highlightText": "Headless Landing page with integrated reverse proxy & DDNS management system.",
+    "socialBadgeText": "📡 VAIO SERVER ACTIVE",
+    "showKoperasiSection": false
+  },
+  "projects": [
+    {
+      "id": "proj_1",
+      "title": "Orchestra Web Canvas",
+      "description": "Elegant, ultra-fast, and distraction-free portfolio with custom interactive modules.",
+      "link": "https://orchestra.vaio",
+      "iconName": "Sparkles",
+      "category": "Core",
+      "isActive": false
+    },
+    {
+      "id": "proj_2",
+      "title": "Koperasi Micro-Banking",
+      "description": "Community-focused transaction settlement engine and automated bookkeeping dashboard.",
+      "link": "https://koperasi.vaio",
+      "iconName": "TrendingUp",
+      "category": "Koperasi",
+      "isActive": false
+    },
+    {
+      "id": "proj_3",
+      "title": "Vaio Core Gate",
+      "description": "High-performance microservice router with live Cloudflare DNS & SSL provisioning hooks.",
+      "link": "https://gateway.vaio",
+      "iconName": "Server",
+      "category": "Utility",
+      "isActive": false
+    },
+    {
+      "title": "Beszel",
+      "description": "Beszel monitoring",
+      "link": "http://100.117.176.41:8090",
+      "iconName": "Sparkles",
+      "category": "Utility",
+      "isActive": true,
+      "id": "proj_1780081802320"
+    }
+  ],
+  "links": [
+    {
+      "id": "link_1",
+      "platform": "GitHub",
+      "url": "https://github.com/ardysyafii",
+      "iconName": "Github",
+      "isActive": true
+    },
+    {
+      "id": "link_2",
+      "platform": "LinkedIn",
+      "url": "https://linkedin.com/in/ardysyafii",
+      "iconName": "Linkedin",
+      "isActive": true
+    },
+    {
+      "id": "link_3",
+      "platform": "Email",
+      "url": "mailto:ardy.syafii@gmail.com",
+      "iconName": "Mail",
+      "isActive": true
+    },
+    {
+      "id": "link_4",
+      "platform": "Telegram",
+      "url": "https://t.me/ardysyafii",
+      "iconName": "Send",
+      "isActive": true
+    }
+  ],
+  "nginxConfigs": [
+    {
+      "id": "nginx_1",
+      "domainName": "orchestra.vaio",
+      "targetUrl": "http://127.0.0.1:8080",
+      "sslEnabled": true,
+      "sslType": "Certbot",
+      "sslEmail": "ardy.syafii@gmail.com",
+      "isLoadBalanced": false,
+      "upstreams": [],
+      "isActive": true,
+      "lastGeneratedContent": "# Orchestra Auto-Generated Nginx Virtual Host Config\nserver {\n    listen 80;\n    listen [::]:80;\n    server_name orchestra.vaio;\n\n    # SSL Termination via Let's Encrypt / Certbot / Cloudflare Edge\n    listen 443 ssl http2;\n    listen [::]:443 ssl http2;\n    ssl_certificate /etc/letsencrypt/live/orchestra.vaio/fullchain.pem; # managed by Certbot\n    ssl_certificate_key /etc/letsencrypt/live/orchestra.vaio/privkey.pem; # managed by Certbot\n    ssl_protocols TLSv1.2 TLSv1.3;\n    ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384';\n    ssl_prefer_server_ciphers on;\n\n    # Force HTTPS Redirection\n    if ($scheme != \"https\") {\n        return 301 https://$host$request_uri;\n    }\n\n    location / {\n        proxy_pass http://127.0.0.1:8080;\n        proxy_http_version 1.1;\n        proxy_set_header Upgrade $http_upgrade;\n        proxy_set_header Connection \"upgrade\";\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n        proxy_read_timeout 90s;\n    }\n}\n",
+      "createdAt": "2026-05-29T01:05:30.760Z"
+    },
+    {
+      "id": "nginx_2",
+      "domainName": "api-loadbalancer.vaio",
+      "targetUrl": "http://api_cluster",
+      "sslEnabled": true,
+      "sslType": "Cloudflare",
+      "isLoadBalanced": true,
+      "upstreams": [
+        "http://127.0.0.1:8001 weight=3",
+        "http://127.0.0.1:8002 weight=2"
+      ],
+      "isActive": true,
+      "lastGeneratedContent": "",
+      "createdAt": "2026-05-29T01:05:30.761Z"
+    },
+    {
+      "domainName": "Beszel",
+      "targetUrl": "http://100.117.176.41:8090",
+      "sslEnabled": true,
+      "sslType": "Certbot",
+      "sslEmail": "",
+      "isLoadBalanced": false,
+      "upstreams": [],
+      "customDirectives": "",
+      "isActive": true,
+      "id": "nginx_1780081573063",
+      "lastGeneratedContent": "# Orchestra Auto-Generated Nginx Virtual Host Config\nserver {\n    listen 80;\n    listen [::]:80;\n    server_name Beszel;\n\n    # SSL Termination via Let's Encrypt / Certbot / Cloudflare Edge\n    listen 443 ssl http2;\n    listen [::]:443 ssl http2;\n    ssl_certificate /etc/letsencrypt/live/Beszel/fullchain.pem; # managed by Certbot\n    ssl_certificate_key /etc/letsencrypt/live/Beszel/privkey.pem; # managed by Certbot\n    ssl_protocols TLSv1.2 TLSv1.3;\n    ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384';\n    ssl_prefer_server_ciphers on;\n\n    # Force HTTPS Redirection\n    if ($scheme != \"https\") {\n        return 301 https://$host$request_uri;\n    }\n\n    location / {\n        proxy_pass http://100.117.176.41:8090;\n        proxy_http_version 1.1;\n        proxy_set_header Upgrade $http_upgrade;\n        proxy_set_header Connection \"upgrade\";\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n        proxy_read_timeout 90s;\n    }\n}\n",
+      "createdAt": "2026-05-29T19:06:13.063Z"
+    }
+  ],
+  "ddnsConfigs": [
+    {
+      "id": "ddns_1",
+      "provider": "Cloudflare",
+      "domainName": "home.vaio.net",
+      "apiToken": "cf_tok_7a9f8f2e1a3b4c5d6e7f8g9h",
+      "zoneId": "cf_zone_e3b0c44298fc1c149afbf4c8996fb924",
+      "lastDetectedIp": "180.244.113.179",
+      "status": "Active",
+      "lastUpdated": "2026-05-29T21:53:45.774Z",
+      "checkFrequency": 15,
+      "enabled": true
+    }
+  ],
+  "portForwards": [
+    {
+      "id": "pf_1",
+      "name": "GitHub Webhook Ingress",
+      "incomingPort": 8080,
+      "localAddress": "127.0.0.1",
+      "localPort": 3000,
+      "webhookEnabled": true,
+      "webhookUrl": "http://localhost:3000/api/webhooks/github",
+      "status": "Active"
+    },
+    {
+      "id": "pf_2",
+      "name": "FastAPI Dev Router",
+      "incomingPort": 8080,
+      "localAddress": "127.0.0.1",
+      "localPort": 8000,
+      "webhookEnabled": false,
+      "status": "Inactive"
+    }
+  ]
+}

@@ -189,6 +189,12 @@ export async function deleteNginxConfig(token: string, id: string) {
 }
 
 // DDNS Config CRUD
+export async function fetchProjectStatus(): Promise<{ statuses: { id: string; online: boolean }[] }> {
+  const res = await fetch(`${API_BASE}/public/project-status`);
+  if (!res.ok) throw new Error('Failed to fetch project status');
+  return res.json();
+}
+
 export async function addDdnsConfig(token: string, config: Omit<DDNSConfig, 'id' | 'lastUpdated'>) {
   const res = await fetch(`${API_BASE}/admin/ddns`, {
     method: 'POST',
@@ -249,6 +255,24 @@ export async function updatePortForward(token: string, id: string, pf: Partial<P
     body: JSON.stringify(pf)
   });
   if (!res.ok) throw new Error('Failed to update ingress port forward registry');
+  return res.json();
+}
+
+export async function fetchListeningPorts(token: string) {
+  const res = await fetch(`${API_BASE}/admin/listening-ports`, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error('Failed to fetch listening ports');
+  return res.json();
+}
+
+export async function fetchSecurityStatus(token: string) {
+  const res = await fetch(`${API_BASE}/admin/security-status`, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!res.ok) throw new Error('Failed to fetch security status');
   return res.json();
 }
 
