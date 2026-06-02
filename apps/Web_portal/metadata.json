@@ -1,0 +1,8 @@
+{
+  "name": "Orchestra Gateway",
+  "description": "Orchestra Gateway: A clean, reliable dashboard for managing reverse proxies, DDNS synchronizations, local port forward configurations, and live cluster service telemetry.",
+  "Overwrite": true,
+  "TargetFile": "/metadata.json",
+  "toolAction: Updating metadata with the new project name",
+  "toolSummary": "Update metadata with clean name"
+}

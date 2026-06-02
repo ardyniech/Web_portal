@@ -1,0 +1,1 @@
+./start_portal.sh: line 3: 3346787 Killed                  node dist/server.cjs > /home/ardy/logs/web_portal.log 2>&1

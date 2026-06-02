@@ -1,0 +1,233 @@
+{
+  "users": {
+    "admin": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
+    "testuser": "13d249f2cb4127b40cfa757866850278793f814ded3c587fe5889e889a7a9f6c"
+  },
+  "profiles": {
+    "admin": {
+      "id": "admin",
+      "email": "admin@vaio.net",
+      "username": "admin",
+      "fullName": "Ardy Syafii",
+      "bio": "Fullstack Systems Engineer and Network Infrastructure Developer.",
+      "avatarUrl": ""
+    },
+    "testuser": {
+      "id": "testuser",
+      "email": "test@example.com",
+      "username": "testuser",
+      "fullName": "Test User",
+      "bio": "Infrastructure and applications developer."
+    }
+  },
+  "sessions": {
+    "4754bab445bdbaf7fb2a91d964ca170d7ec135597b4c184d8785ea891b1bbe30": "testuser",
+    "bd38dccf9bc4f4680fffb48aab549956565e01f9c4a12d41b931d4361487b891": "admin",
+    "a76dbd1c62ba648c220e5280ad2501d91c2743662cb099a52345e950f06142b2": "admin",
+    "79c5a6620e957bfed55f536e386b3a2472c8df4a0f99e28bc99c99f9e8d74643": "admin",
+    "1aa2d3436191c60e03ec4773d55d72c7348f73332008280edcdbb3023c0ff966": "admin",
+    "4c90556d0e401d6b57423d1796c5f6a8eb6bf2dd1dcad85c8c3abbde4d3fcb41": "admin",
+    "8cf660c1791017b89766e0e8a900d4daa1b648aed3202f503094d048711f28d9": "admin",
+    "112f7ecbc60ad9f2c8824ad4657d42e96d394d7cd092e74e012de0f964bf0d75": "admin",
+    "e8a7437ff2ce685ef42280d37109be9f05e5e0a926327d6a5bb3f8500c48f612": "admin",
+    "6a662374053a7a1b3b55625071f6720d489084f5825be7fad1781580c91c3d58": "admin",
+    "bcee0a7980cd887bc8dc67b6242838fba69fc6280336c8a76d8e578596d4f528": "admin",
+    "e28e5f66fcc8286bc36b2fcccb1447bc2316b5eaf16c0128662c8e9d58a725c1": "admin",
+    "5f4dace7ccfac1febabaaea9d62e0cd5db6f63e9a19a456864e14b68ed968d06": "admin",
+    "b57f781456f8cb033e504f1d86fc84919be8d72512a16e7fe81085193657ec5f": "admin",
+    "01016c49edfb894aa69ef8130b61fd3496d3252ab5186a453843f4c14118e3e5": "admin",
+    "df2ad834d8846c2096d5bae2769f2f89e8321b461754e885b82d1537ec49f87a": "admin"
+  },
+  "hero": {
+    "title": "Ardy Syafii",
+    "subtitle": "Dynamic Systems Architect & Network Solutions Eng.",
+    "highlightText": "Headless Landing page with integrated reverse proxy & DDNS management system.",
+    "socialBadgeText": "📡 VAIO SERVER ACTIVE",
+    "showKoperasiSection": false
+  },
+  "projects": [
+    {
+      "id": "proj_1",
+      "title": "Orchestra Web Canvas",
+      "description": "Elegant, ultra-fast, and distraction-free portfolio with custom interactive modules.",
+      "link": "https://orchestra.vaio",
+      "iconName": "Sparkles",
+      "category": "Core",
+      "isActive": false
+    },
+    {
+      "id": "proj_2",
+      "title": "Koperasi Micro-Banking",
+      "description": "Community-focused transaction settlement engine and automated bookkeeping dashboard.",
+      "link": "https://koperasi.vaio",
+      "iconName": "TrendingUp",
+      "category": "Koperasi",
+      "isActive": false
+    },
+    {
+      "id": "proj_3",
+      "title": "Vaio Core Gate",
+      "description": "High-performance microservice router with live Cloudflare DNS & SSL provisioning hooks.",
+      "link": "https://gateway.vaio",
+      "iconName": "Server",
+      "category": "Utility",
+      "isActive": false
+    },
+    {
+      "title": "Beszel",
+      "description": "Beszel monitoring",
+      "link": "http://100.117.176.41:8090",
+      "iconName": "Sparkles",
+      "category": "Utility",
+      "isActive": true,
+      "id": "proj_1780081802320"
+    }
+  ],
+  "links": [
+    {
+      "id": "link_1",
+      "platform": "GitHub",
+      "url": "https://github.com/ardysyafii",
+      "iconName": "Github",
+      "isActive": true
+    },
+    {
+      "id": "link_2",
+      "platform": "LinkedIn",
+      "url": "https://linkedin.com/in/ardysyafii",
+      "iconName": "Linkedin",
+      "isActive": true
+    },
+    {
+      "id": "link_3",
+      "platform": "Email",
+      "url": "mailto:ardy.syafii@gmail.com",
+      "iconName": "Mail",
+      "isActive": true
+    },
+    {
+      "id": "link_4",
+      "platform": "Telegram",
+      "url": "https://t.me/ardysyafii",
+      "iconName": "Send",
+      "isActive": true
+    }
+  ],
+  "nginxConfigs": [
+    {
+      "id": "nginx_1",
+      "domainName": "orchestra.vaio",
+      "targetUrl": "http://100.117.176.41:56234/",
+      "sslEnabled": true,
+      "sslType": "Certbot",
+      "sslEmail": "ardy.syafii@gmail.com",
+      "isLoadBalanced": false,
+      "upstreams": [],
+      "isActive": true,
+      "lastGeneratedContent": "# Orchestra Auto-Generated Nginx Virtual Host Config\nserver {\n    listen 80;\n    listen [::]:80;\n    server_name orchestra.vaio;\n\n    # SSL Termination via Let's Encrypt / Certbot / Cloudflare Edge\n    listen 443 ssl http2;\n    listen [::]:443 ssl http2;\n    ssl_certificate /etc/letsencrypt/live/orchestra.vaio/fullchain.pem; # managed by Certbot\n    ssl_certificate_key /etc/letsencrypt/live/orchestra.vaio/privkey.pem; # managed by Certbot\n    ssl_protocols TLSv1.2 TLSv1.3;\n    ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384';\n    ssl_prefer_server_ciphers on;\n\n    # Force HTTPS Redirection\n    if ($scheme != \"https\") {\n        return 301 https://$host$request_uri;\n    }\n\n    location / {\n        proxy_pass http://100.117.176.41:56234/;\n        proxy_http_version 1.1;\n        proxy_set_header Upgrade $http_upgrade;\n        proxy_set_header Connection \"upgrade\";\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n        proxy_read_timeout 90s;\n    }\n}\n",
+      "createdAt": "2026-05-29T01:05:30.760Z"
+    },
+    {
+      "id": "nginx_2",
+      "domainName": "api-loadbalancer.vaio",
+      "targetUrl": "http://api_cluster",
+      "sslEnabled": true,
+      "sslType": "Cloudflare",
+      "isLoadBalanced": true,
+      "upstreams": [
+        "http://127.0.0.1:8001 weight=3",
+        "http://127.0.0.1:8002 weight=2"
+      ],
+      "isActive": true,
+      "lastGeneratedContent": "",
+      "createdAt": "2026-05-29T01:05:30.761Z"
+    },
+    {
+      "domainName": "Beszel",
+      "targetUrl": "http://100.117.176.41:8090",
+      "sslEnabled": true,
+      "sslType": "Certbot",
+      "sslEmail": "",
+      "isLoadBalanced": false,
+      "upstreams": [],
+      "customDirectives": "",
+      "isActive": true,
+      "id": "nginx_1780081573063",
+      "lastGeneratedContent": "# Orchestra Auto-Generated Nginx Virtual Host Config\nserver {\n    listen 80;\n    listen [::]:80;\n    server_name Beszel;\n\n    # SSL Termination via Let's Encrypt / Certbot / Cloudflare Edge\n    listen 443 ssl http2;\n    listen [::]:443 ssl http2;\n    ssl_certificate /etc/letsencrypt/live/Beszel/fullchain.pem; # managed by Certbot\n    ssl_certificate_key /etc/letsencrypt/live/Beszel/privkey.pem; # managed by Certbot\n    ssl_protocols TLSv1.2 TLSv1.3;\n    ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384';\n    ssl_prefer_server_ciphers on;\n\n    # Force HTTPS Redirection\n    if ($scheme != \"https\") {\n        return 301 https://$host$request_uri;\n    }\n\n    location / {\n        proxy_pass http://100.117.176.41:8090;\n        proxy_http_version 1.1;\n        proxy_set_header Upgrade $http_upgrade;\n        proxy_set_header Connection \"upgrade\";\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n        proxy_read_timeout 90s;\n    }\n}\n",
+      "createdAt": "2026-05-29T19:06:13.063Z"
+    },
+    {
+      "domainName": "Koperasi_mini",
+      "targetUrl": "http://127.0.0.1:54322",
+      "sslEnabled": true,
+      "sslType": "SelfSigned",
+      "sslEmail": "",
+      "isLoadBalanced": false,
+      "upstreams": [],
+      "customDirectives": "",
+      "isActive": true,
+      "id": "nginx_1780141732185",
+      "lastGeneratedContent": "# Orchestra Auto-Generated Nginx Virtual Host Config\nserver {\n    listen 80;\n    listen [::]:80;\n    server_name Koperasi_mini;\n\n    # SSL Termination via Let's Encrypt / Certbot / Cloudflare Edge\n    listen 443 ssl http2;\n    listen [::]:443 ssl http2;\n    ssl_certificate /etc/letsencrypt/live/Koperasi_mini/fullchain.pem; # managed by Certbot\n    ssl_certificate_key /etc/letsencrypt/live/Koperasi_mini/privkey.pem; # managed by Certbot\n    ssl_protocols TLSv1.2 TLSv1.3;\n    ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384';\n    ssl_prefer_server_ciphers on;\n\n    # Force HTTPS Redirection\n    if ($scheme != \"https\") {\n        return 301 https://$host$request_uri;\n    }\n\n    location / {\n        proxy_pass http://127.0.0.1:54322;\n        proxy_http_version 1.1;\n        proxy_set_header Upgrade $http_upgrade;\n        proxy_set_header Connection \"upgrade\";\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n        proxy_read_timeout 90s;\n    }\n}\n",
+      "createdAt": "2026-05-30T11:48:52.185Z"
+    },
+    {
+      "domainName": "Koperasi_mini frontend ",
+      "targetUrl": "http://127.0.0.1:54321",
+      "sslEnabled": true,
+      "sslType": "SelfSigned",
+      "sslEmail": "",
+      "isLoadBalanced": false,
+      "upstreams": [],
+      "customDirectives": "",
+      "isActive": true,
+      "id": "nginx_1780141844241",
+      "lastGeneratedContent": "# Orchestra Auto-Generated Nginx Virtual Host Config\nserver {\n    listen 80;\n    listen [::]:80;\n    server_name Koperasi_mini frontend ;\n\n    # SSL Termination via Let's Encrypt / Certbot / Cloudflare Edge\n    listen 443 ssl http2;\n    listen [::]:443 ssl http2;\n    ssl_certificate /etc/letsencrypt/live/Koperasi_mini frontend /fullchain.pem; # managed by Certbot\n    ssl_certificate_key /etc/letsencrypt/live/Koperasi_mini frontend /privkey.pem; # managed by Certbot\n    ssl_protocols TLSv1.2 TLSv1.3;\n    ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384';\n    ssl_prefer_server_ciphers on;\n\n    # Force HTTPS Redirection\n    if ($scheme != \"https\") {\n        return 301 https://$host$request_uri;\n    }\n\n    location / {\n        proxy_pass http://127.0.0.1:54321;\n        proxy_http_version 1.1;\n        proxy_set_header Upgrade $http_upgrade;\n        proxy_set_header Connection \"upgrade\";\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n        proxy_read_timeout 90s;\n    }\n}\n",
+      "createdAt": "2026-05-30T11:50:44.241Z"
+    }
+  ],
+  "ddnsConfigs": [
+    {
+      "id": "ddns_1",
+      "provider": "Cloudflare",
+      "domainName": "home.vaio.net",
+      "apiToken": "cf_tok_7a9f8f2e1a3b4c5d6e7f8g9h",
+      "zoneId": "cf_zone_e3b0c44298fc1c149afbf4c8996fb924",
+      "lastDetectedIp": "180.244.158.59",
+      "status": "Active",
+      "lastUpdated": "2026-06-01T21:16:28.239Z",
+      "checkFrequency": 15,
+      "enabled": true
+    }
+  ],
+  "portForwards": [
+    {
+      "id": "pf_1",
+      "name": "GitHub Webhook Ingress",
+      "incomingPort": 8080,
+      "localAddress": "127.0.0.1",
+      "localPort": 3000,
+      "webhookEnabled": true,
+      "webhookUrl": "http://localhost:3000/api/webhooks/github",
+      "status": "Active"
+    },
+    {
+      "id": "pf_2",
+      "name": "FastAPI Dev Router",
+      "incomingPort": 8080,
+      "localAddress": "127.0.0.1",
+      "localPort": 8000,
+      "webhookEnabled": true,
+      "status": "Inactive"
+    },
+    {
+      "name": "Koperasi_mini",
+      "incomingPort": 54323,
+      "localAddress": "127.0.0.1",
+      "localPort": 54321,
+      "webhookEnabled": true,
+      "webhookUrl": "http://localhost:3000/api/webhooks/github",
+      "status": "Active",
+      "id": "pf_1780141972373"
+    }
+  ]
+}

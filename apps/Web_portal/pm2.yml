@@ -1,0 +1,11 @@
+apps:
+  - name: web-portal
+    script: npm start
+    cwd: /home/ardy/apps/Web_portal
+    interpreter: /usr/bin/bash
+    env:
+      NODE_ENV: production
+    exec_mode: fork
+    instances: 1
+    watch: false
+    max_memory_restart: 200M

@@ -1,0 +1,6 @@
+# Caddyfile for Web Portal (Orchestra Gateway)
+# Serve on port 56235 internally, optional external proxy via global Caddy
+
+:56235 {
+    reverse_proxy localhost:56235
+}
