@@ -15,7 +15,7 @@ export async function runPreFlightAudit(): Promise<PreFlightState> {
     if (result.status === 'passed') {
       devConsoleLogger.addLog('info', 'Pre-Flight', 'Audit Pra-Push lolos! Bebas celah keamanan & pelanggaran arsitektur.');
     } else {
-      devConsoleLogger.addLog('warning', 'Pre-Flight', `Ditemukan ${result.issues.length} temuan: ${result.summary}`);
+      devConsoleLogger.addLog('warn', 'Pre-Flight', `Ditemukan ${result.issues.length} temuan: ${result.summary}`);
     }
 
     dispatcher.emit('preflight:updated', result);

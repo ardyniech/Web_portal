@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { generateAiContentWithFallback } from './geminiService';
-import { validateTypeScriptCode } from './refactorValidator';
+import { validateAstSyntax } from './refactorValidator';
 import { applyFilesToWorkspace } from './refactorWriter';
 import { PreFlightFixResult, PreFlightIssue } from './preFlightTypes';
 
@@ -61,7 +61,7 @@ Instruksi Perbaikan:
   }
 
   // Validate AST syntax before writing
-  const validation = validateTypeScriptCode(issue.filePath, fixedCode);
+  const validation = validateAstSyntax(issue.filePath, fixedCode);
   if (!validation.isValid) {
     throw new Error(`Kode hasil fix memiliki galat sintaks AST: ${validation.errors.map((e) => e.message).join(', ')}`);
   }
