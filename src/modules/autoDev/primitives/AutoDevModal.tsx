@@ -1,0 +1,90 @@
+import React from 'react';
+import { useAutoDev } from '../logic/useAutoDev';
+import { Sparkles, X, CheckCircle2, Play, Bot, ArrowRight, ShieldCheck, Cpu } from 'lucide-react';
+import { Button } from '../../../shared/atoms/Button';
+
+interface AutoDevModalProps {
+  onClose: () => void;
+}
+
+export function AutoDevModal({ onClose }: AutoDevModalProps) {
+  const { currentRun, loading, taskGoal, setTaskGoal, error, runPipeline } = useAutoDev();
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl max-w-3xl w-full p-4 border border-zinc-200 shadow-2xl flex flex-col gap-3 max-h-[90vh] overflow-hidden text-xs">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-zinc-100 pb-2.5">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-linear-to-r from-amber-500 to-indigo-600 text-white rounded-lg shadow-sm">
+              <Sparkles className="w-4 h-4 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-zinc-900 leading-none">Tombol Sakti Auto Dev (5 Stage Orchestrator)</h3>
+              <p className="text-[10px] text-zinc-500 font-medium mt-0.5">
+                Otomasi Penuh: Memory Indexing → AST Symbol → Blast Radius → Sandbox Staging → Boundary Enforcement
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-700 rounded-lg cursor-pointer">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Input & Launch */}
+        <div className="flex items-center gap-2 p-2.5 bg-gradient-to-r from-indigo-50/70 to-purple-50/70 border border-indigo-200 rounded-xl">
+          <input
+            type="text"
+            value={taskGoal}
+            onChange={(e) => setTaskGoal(e.target.value)}
+            placeholder="Ketik target otomatisasi (cth: Refaktor Auth Token Provider & Uji Keamanan)..."
+            className="flex-1 px-3 py-1.5 text-xs bg-white border border-indigo-200 rounded-xl focus:outline-none font-medium"
+          />
+          <Button
+            size="sm"
+            onClick={() => runPipeline()}
+            className="h-8 px-3.5 text-xs bg-linear-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-xl shadow-md cursor-pointer flex items-center gap-1.5 shrink-0"
+          >
+            <Sparkles className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>{loading ? 'Menjalankan...' : 'Jalankan Auto Dev'}</span>
+          </Button>
+        </div>
+
+        {/* Stages execution output */}
+        <div className="flex-1 overflow-y-auto flex flex-col gap-2 min-h-[220px] max-h-[360px] pr-1">
+          {!currentRun ? (
+            <div className="flex flex-col items-center justify-center p-8 bg-zinc-50 rounded-xl border border-dashed border-zinc-200 text-zinc-400 gap-1.5">
+              <Cpu className="w-6 h-6 text-indigo-400" />
+              <p className="font-bold text-zinc-700 text-xs">Pipelined Autonomous Execution Engine</p>
+              <p className="text-[10px] text-center max-w-md">
+                Klik tombol "Jalankan Auto Dev" di atas untuk memicu 5 instrumen verifikasi arsitektur secara otomatis tanpa intervensi manual.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between p-2 bg-indigo-50 text-indigo-900 rounded-xl border border-indigo-200 text-[10.5px]">
+                <span className="font-bold font-mono">ID Run: {currentRun.runId}</span>
+                <span className="font-bold bg-indigo-200 text-indigo-950 px-2 py-0.5 rounded text-[9.5px]">
+                  Hemat ~{currentRun.tokensSavedEstimate} Tokens
+                </span>
+              </div>
+
+              {currentRun.stages.map((stg) => (
+                <div key={stg.stageId} className="p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl flex flex-col gap-1 text-[10px]">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-zinc-900 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      Stage {stg.stageId}: {stg.stageName}
+                    </span>
+                    <span className="font-mono text-zinc-400 text-[9px]">{stg.durationMs}ms</span>
+                  </div>
+                  <p className="text-zinc-600 font-medium pl-5">{stg.summary}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

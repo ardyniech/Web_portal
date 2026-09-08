@@ -9,6 +9,7 @@ import { DashboardGrid } from './DashboardGrid';
 import { OfflineSyncPanel } from './OfflineSyncPanel';
 import { RepoRecommendationWidget } from '../modules/repoRecommendation';
 import { AiRefactorModal, generateRefactorProposal } from '../modules/repo';
+import { LargeScaleSuiteWidget } from './LargeScaleSuiteWidget';
 
 interface AiAgentDashboardProps {
   repoFullName: string;
@@ -64,6 +65,9 @@ export function AiAgentDashboard({ repoFullName }: AiAgentDashboardProps) {
           </div>
         </div>
       </div>
+
+      {/* Large-Scale Project Suite with AUTO DEV Sakti Button */}
+      <LargeScaleSuiteWidget />
 
       {/* AI Repo Recommendation & Quick Actions */}
       <RepoRecommendationWidget repoFullName={repoFullName} />
