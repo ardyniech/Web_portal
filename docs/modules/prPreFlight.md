@@ -1,15 +1,22 @@
-# Modul: PR Pre-Flight
+# Modul: PR Pre-Flight Audit
 
 ## Deskripsi
-Modul ini bertindak sebagai gerbang (gatekeeper) analisis pra-komit (pre-flight). AI akan melakukan simulasi audit terhadap perubahan kode yang direncanakan sebelum dipush ke GitHub. 
+Modul ini bertindak sebagai gerbang (gatekeeper) audit peer-review tingkat tinggi sebelum melakukan Pull Request atau push ke repositori. AI mengaudit celah keamanan (security vulnerabilities) dan pelanggaran arsitektur modular (architectural violations) secara mendalam serta menyediakan tombol **Fix AI Nyata (Production-Grade)** yang langsung merefaktor berkas pada disk dan membuat commit Git secara atomik.
 
-## Komponen & Fitur
-1. **Fix-It Engine**: Menganalisis judul/pesan komit terhadap "SOP Zero Mistake" dan aturan arsitektur, mendeteksi konflik, dan mengeluarkan rekomendasi sintaks perbaikan otomatis (autofix) langsung di timeline riwayat komit.
-2. **PreFlightModal**: Antarmuka bagi pengguna untuk memicu simulasi audit arsitektur sebelum mengeksekusi komit sesungguhnya.
-
-## Aturan Arsitektur
-- Logika audit (`logic/fixItEngine.ts`) berjalan terpisah dari komponen React (`primitives/`), menjaga UI tetap responsif.
-- Payload konflik diringkas dan diberi kategori (Critical, High, Medium, Low) agar informasinya user-friendly dan bukan hanya stack trace mentah.
+## Fitur Utama
+1. **High-Level Peer-Review Audit**:
+   - Pemindaian celah keamanan kritis (penyimpanan token tanpa enkripsi, secret exposure, unhandled async promise, XSS).
+   - Pemindaian pelanggaran arsitektur seluler (batas berkas >125 baris, impor langsung cross-module, standarisasi log `[Module:<Nama>]`).
+   - Audit semantik berkas riil menggunakan model Gemini 3.8 Flash dengan fallback deteksi statis deterministik.
+2. **Real Auto-Fix Engine (Bukan Gimmick)**:
+   - Tombol **Fix AI** mengeksekusi refactoring riil terhadap berkas sasaran di workspace.
+   - Validasi sintaks AST TypeScript sebelum penulisan berkas untuk mencegah regresi kode.
+   - Penulisan berkas atomik dan pembuatan commit Git riil (`fix(preflight): ...`).
+   - Dukungan **Fix Semua** untuk menyelesaikan seluruh temuan dalam satu langkah otonom.
+3. **Penyaringan & Tab Interaktif**:
+   - Tab filter cerdas: *Semua*, *Keamanan*, dan *Arsitektur*.
+   - Indikator skor dinamis (0–100) dan status kesiapan push (*Safe for Push* / *Violations Found*).
 
 ## Ruang Improvement
-- Menghubungkan Fix-It Engine langsung ke editor kode sehingga `proposedFix` dapat langsung di-*apply* dengan satu klik (One-Click Auto Fix).
+- Integrasi audit otomatis saat pengguna mengetik pesan commit di Dev Console.
+- Penyediaan visual side-by-side diff sebelum menerapkan fix satu per satu.

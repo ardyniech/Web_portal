@@ -23,11 +23,9 @@ export async function runFullPreFlightAudit(rootDir = process.cwd()): Promise<Pr
   for (const fp of filePaths) {
     const full = path.join(rootDir, fp);
     if (!fs.existsSync(full)) continue;
-    const content = fs.readFileSync(full, 'utf8');
-    const lines = content.split('\n').length;
+    const lines = fs.readFileSync(full, 'utf8').split('\n').length;
     const issuesForFile = scanFileStatically(fp, rootDir);
     staticIssues.push(...issuesForFile);
-
     filesReviewed.push({
       filePath: fp,
       linesChanged: lines,
@@ -36,90 +34,54 @@ export async function runFullPreFlightAudit(rootDir = process.cwd()): Promise<Pr
     });
   }
 
-  // Next, run Gemini high-level peer-review if files exist
   let aiIssues: PreFlightIssue[] = [];
   let modelName = 'deterministic-static';
 
   if (filePaths.length > 0) {
-    const fileSnippets = filePaths.slice(0, 3).map((fp) => {
+    const snippets = filePaths.slice(0, 3).map((fp) => {
       const full = path.join(rootDir, fp);
-      if (!fs.existsSync(full)) return '';
-      const text = fs.readFileSync(full, 'utf8');
-      return `### Berkas: ${fp}\n\`\`\`typescript\n${text.slice(0, 1200)}\n\`\`\``;
+      return fs.existsSync(full) ? `### ${fp}\n\`\`\`typescript\n${fs.readFileSync(full, 'utf8').slice(0, 1000)}\n\`\`\`` : '';
     }).filter(Boolean).join('\n\n');
 
-    const prompt = `Anda adalah Principal Security Auditor & Lead Software Architect. Lakukan audit peer-review tingkat tinggi untuk memeriksa celah keamanan (security vulnerabilities) dan pelanggaran arsitektur modular (architectural violations) pada berkas berikut:
-
-Commit: [${commitHash}] ${commitMessage}
-
-${fileSnippets}
-
-Aturan SOP Arsitektur Wajib:
-1. Batas ketat <125 baris per berkas.
-2. Tidak boleh ada impor internal langsung antar modul (hanya boleh via core/dispatcher atau public API index.ts).
-3. Format log error wajib: [Module:<Nama>] Error in <fungsi>: <pesan>.
-4. Keamanan: Tidak ada raw token/secret, cegah XSS/eval, tangani rejection try/catch.
-
-KEMBALIKAN HANYA JSON VALID:
+    const prompt = `Anda adalah Principal Security Auditor. Audit peer-review tingkat tinggi untuk keamanan dan arsitektur berkas:
+Commit: [${commitHash}] ${commitMessage}\n\n${snippets}
+KEMBALIKAN JSON VALID:
 {
-  "summary": "Ringkasan hasil audit tingkat tinggi",
-  "issues": [
-    {
-      "id": "ai-sec-1",
-      "filePath": "path/ke/berkas.ts",
-      "ruleId": "SEC-401 | ARCH-102 | LOG-301",
-      "ruleName": "Nama Aturan",
-      "category": "security | architecture | reliability",
-      "severity": "critical | architectural | warning",
-      "message": "Penjelasan detail kenapa ini melanggar standar",
-      "proposedFix": "Langkah perbaikan konkret yang harus diterapkan",
-      "fixable": true
-    }
-  ]
+  "summary": "Ringkasan audit",
+  "issues": [{ "id": "ai-1", "filePath": "path/file.ts", "ruleId": "SEC-401", "ruleName": "Nama", "category": "security", "severity": "critical", "message": "Pesan", "proposedFix": "Solusi", "fixable": true }]
 }`;
 
     try {
-      const aiRes = await generateAiContentWithFallback(prompt, 'You are an elite software auditor and security researcher.');
-      let raw = aiRes.text.trim();
-      if (raw.startsWith('```json')) raw = raw.replace(/^```json\s*/, '').replace(/```\s*$/, '');
-      else if (raw.startsWith('```')) raw = raw.replace(/^```\s*/, '').replace(/```\s*$/, '');
+      const aiRes = await generateAiContentWithFallback(prompt, 'Software architect and auditor.');
+      let raw = aiRes.text.trim().replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/```\s*$/, '');
       const parsed = JSON.parse(raw.trim());
-      if (Array.isArray(parsed.issues)) {
-        aiIssues = parsed.issues;
-      }
+      if (Array.isArray(parsed.issues)) aiIssues = parsed.issues;
       modelName = aiRes.model;
     } catch (err: any) {
-      console.warn('[Module:PreFlight] Gemini audit fallback:', err?.message);
+      console.warn('[Module:PreFlight] AI audit fallback:', err?.message);
     }
   }
 
-  // Deduplicate and combine issues
-  const allIssuesMap = new Map<string, PreFlightIssue>();
+  const allMap = new Map<string, PreFlightIssue>();
   for (const issue of [...staticIssues, ...aiIssues]) {
-    const key = `${issue.filePath}:${issue.ruleId}`;
-    if (!allIssuesMap.has(key)) {
-      allIssuesMap.set(key, issue);
-    }
+    allMap.set(`${issue.filePath}:${issue.ruleId}`, issue);
   }
-  const combinedIssues = Array.from(allIssuesMap.values());
+  const combined = Array.from(allMap.values());
+  const critical = combined.filter((i) => i.severity === 'critical').length;
+  const arch = combined.filter((i) => i.severity === 'architectural').length;
+  const warn = combined.filter((i) => i.severity === 'warning').length;
 
-  const criticalCount = combinedIssues.filter((i) => i.severity === 'critical').length;
-  const archCount = combinedIssues.filter((i) => i.severity === 'architectural').length;
-  const warnCount = combinedIssues.filter((i) => i.severity === 'warning').length;
-
-  const score = Math.max(0, 100 - criticalCount * 30 - archCount * 15 - warnCount * 5);
-  const status = criticalCount > 0 ? 'failed' : archCount > 0 ? 'failed' : warnCount > 0 ? 'warning' : 'passed';
+  const score = Math.max(0, 100 - critical * 30 - arch * 15 - warn * 5);
+  const status = critical > 0 || arch > 0 ? 'failed' : warn > 0 ? 'warning' : 'passed';
 
   return {
     commitHash,
     commitMessage,
     score,
     status,
-    summary: status === 'passed'
-      ? 'Semua berkas pada komit lokal lolos standar keamanan dan arsitektur seluler tingkat tinggi.'
-      : `Ditemukan ${criticalCount} isu keamanan kritis dan ${archCount} pelanggaran arsitektur yang perlu diperbaiki.`,
+    summary: status === 'passed' ? 'Semua berkas lolos verifikasi keamanan & arsitektur.' : `Ditemukan ${critical} isu kritis & ${arch} pelanggaran arsitektur.`,
     filesReviewed,
-    issues: combinedIssues,
+    issues: combined,
     auditedAt: new Date().toISOString(),
     model: modelName,
   };
