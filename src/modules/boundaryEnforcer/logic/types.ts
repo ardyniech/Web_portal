@@ -15,3 +15,20 @@ export interface BoundaryReport {
   violations: BoundaryViolation[];
   auditedAt: string;
 }
+
+export interface FileComplexityItem {
+  filePath: string;
+  lineCount: number;
+  cyclomaticComplexity: number;
+  densityStatus: 'safe' | 'warning' | 'critical';
+  cognitiveLoadScore: number;
+  suggestedDecomposition: string | null;
+}
+
+export interface ComplexityAuditReport {
+  totalFiles: number;
+  filesApproachingLimit: number;
+  criticalMonoliths: number;
+  averageComplexity: number;
+  files: FileComplexityItem[];
+}

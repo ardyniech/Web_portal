@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { BoundaryReport } from './types';
+import { BoundaryReport, ComplexityAuditReport } from './types';
 import { boundaryEnforcerApi } from '../storage/boundaryEnforcerApi';
 import { dispatcher } from '../../../core/dispatcher';
 
 export function useBoundaryEnforcer() {
   const [report, setReport] = useState<BoundaryReport | null>(null);
+  const [complexityReport, setComplexityReport] = useState<ComplexityAuditReport | null>(null);
+  const [activeTab, setActiveTab] = useState<'boundaries' | 'complexity'>('boundaries');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -12,8 +14,10 @@ export function useBoundaryEnforcer() {
     setLoading(true);
     setError(null);
     try {
-      const data = await boundaryEnforcerApi.runAudit();
+      const data = await boundaryEnforcerApi.fetchAuditReport();
       setReport(data);
+      const comp = await boundaryEnforcerApi.fetchComplexityReport();
+      setComplexityReport(comp);
     } catch (err: any) {
       setError(err?.message || 'Gagal menjalankan boundary audit.');
     } finally {
@@ -27,5 +31,13 @@ export function useBoundaryEnforcer() {
     return () => unsub();
   }, []);
 
-  return { report, loading, error, refresh: runAudit };
+  return {
+    report,
+    complexityReport,
+    activeTab,
+    setActiveTab,
+    loading,
+    error,
+    refresh: runAudit,
+  };
 }
