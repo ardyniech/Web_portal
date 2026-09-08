@@ -1,30 +1,35 @@
 import { generateAiContentWithFallback } from './geminiService';
 import { verifyAndSelfCorrectProposal } from './autoDevSelfCorrectionService';
+import { scanRepoLanguageFingerprint } from './languageSupportService';
 import { AutoDevPipelineRun } from './autoDevTypes';
 
 export async function synthesizeAiCodeProposal(workspaceRoot: string, taskGoal: string, totalFiles: number): Promise<AutoDevPipelineRun['aiCodeProposal']> {
   try {
-    const aiPrompt = `Pengguna memberikan instruksi umum/spesifik berikut untuk proyek ini: "${taskGoal}".
-Dukung pembuatan atau modifikasi kode dalam BAHASA PEMROGRAMAN APA PUN yang diminta atau sesuai konteks proyek (TypeScript, JavaScript, Python, Rust, Go, Java, Kotlin, C/C++, C#, PHP, Ruby, Swift, Dart, Shell, SQL, HTML/CSS, JSON/YAML).
+    const fingerprint = scanRepoLanguageFingerprint(workspaceRoot);
+    const aiPrompt = `Instruksi Pengguna: "${taskGoal}".
+Distribusi Bahasa Repositori: ${fingerprint.breakdownText}.
 
-Berdasarkan konteks arsitektur (${totalFiles} berkas), buatkan proposal kode produksi yang konkret dan siap diimplementasikan.
-Kirimkan dalam format JSON valid:
+Dukung pembuatan atau modifikasi kode dalam BAHASA PEMROGRAMAN MANAPUN (TypeScript, Python, Rust, Go, Java, C/C++, C#, PHP, Ruby, Swift, Dart, Elixir, Haskell, Vue, Svelte, Solidity, Shell, SQL, YAML, dll).
+Terapkan idiom & konvensi terbaik khas bahasa target (misal: PEP8 untuk Python, Borrowing/Ownership untuk Rust, Goroutines untuk Go, Sound Null Safety untuk Dart/Kotlin, Strict Types untuk TS/PHP).
+
+Berdasarkan konteks arsitektur (${totalFiles} berkas), buatkan proposal kode produksi yang konkret dan idiomatik.
+Kirimkan HANYA dalam format JSON valid:
 {
-  "summary": "Ringkasan teknis solusi untuk instruksi pengguna",
+  "summary": "Ringkasan solusi teknis",
   "commitMessage": "feat(auto-dev): deskripsi perubahan",
   "targets": [
     {
       "filePath": "path/ke/berkas.ext",
       "action": "create",
-      "description": "Deskripsi perubahan dan bahasa yang digunakan",
-      "codeSnippet": "// Kode murni produksi dalam bahasa yang sesuai..."
+      "description": "Deskripsi perubahan, bahasa, dan pola idiomatik yang diterapkan",
+      "codeSnippet": "// Kode murni produksi idiomatik..."
     }
   ]
 }`;
-    const aiRes = await generateAiContentWithFallback(
-      aiPrompt,
-      'You are an elite Polyglot Senior Principal Engineer fluent in TypeScript, Python, Rust, Go, Java, C++, PHP, SQL, Shell, etc. Generate production JSON proposals.'
-    );
+
+    const systemPrompt = `You are a World-Class Polyglot Principal Software Architect with expert-level mastery in 30+ programming languages (TypeScript, Python, Rust, Go, C++, Java, Kotlin, Swift, Dart, Elixir, PHP, Ruby, Haskell, Solidity, SQL, Docker, etc.). You strictly write idiomatic, production-grade, bug-free code matching the repository's language style.`;
+
+    const aiRes = await generateAiContentWithFallback(aiPrompt, systemPrompt);
     const jsonMatch = aiRes.text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
@@ -32,13 +37,13 @@ Kirimkan dalam format JSON valid:
       const { correctedTargets, autoFixesApplied } = await verifyAndSelfCorrectProposal(targets);
 
       return {
-        summary: parsed.summary + (autoFixesApplied > 0 ? ` (${autoFixesApplied} Perbaikan Sintaks Otomatis)` : ''),
+        summary: `${parsed.summary} [Repo: ${fingerprint.topLanguages.slice(0, 3).join('/') || 'Polyglot'}]` + (autoFixesApplied > 0 ? ` (${autoFixesApplied} Self-Fix Applied)` : ''),
         commitMessage: parsed.commitMessage || `feat(auto-dev): ${taskGoal}`,
         targets: correctedTargets,
       };
     }
   } catch (err) {
-    console.warn('[Module:AutoDev] Dynamic AI Polyglot Code Gen fallback:', err);
+    console.warn('[Module:AutoDev] Polyglot AI Code Gen fallback:', err);
   }
   return undefined;
 }

@@ -3,6 +3,7 @@ import { scanCodeGraph } from './codeGraphService';
 import { detectBreakingChangesInFile } from './breakingChangeDetectorService';
 import { generateArchitecturalPlan } from './planEngineService';
 import { getChangedOrCandidateFiles, scanFileStatically } from './preFlightScanner';
+import { scanRepoLanguageFingerprint } from './languageSupportService';
 import { AutoDevStageResult } from './autoDevTypes';
 
 export async function runAnalysisStages(workspaceRoot: string, taskGoal: string): Promise<{ stages: AutoDevStageResult[]; graphFileCount: number }> {
@@ -75,6 +76,19 @@ export async function runAnalysisStages(workspaceRoot: string, taskGoal: string)
     durationMs: Date.now() - t5,
     summary: issueCount === 0 ? `0 Kerentanan/Pelanggaran pada ${candidateFiles.length} berkas sampel` : `Terdeteksi ${issueCount} isu aturan pre-flight`,
     details: { scannedFiles: candidateFiles.length, issueCount },
+  });
+
+  // Stage 6: Polyglot Repo Language Fingerprinting
+  const t6 = Date.now();
+  const fingerprint = scanRepoLanguageFingerprint(workspaceRoot);
+  stages.push({
+    stageId: 6,
+    stageName: 'Polyglot Language Fingerprint Analyzer',
+    toolName: 'Universal Polyglot Repo Scanner',
+    status: 'success',
+    durationMs: Date.now() - t6,
+    summary: `Repositori terdeteksi: ${fingerprint.breakdownText}`,
+    details: { topLanguages: fingerprint.topLanguages },
   });
 
   return { stages, graphFileCount: graph.totalFiles };
