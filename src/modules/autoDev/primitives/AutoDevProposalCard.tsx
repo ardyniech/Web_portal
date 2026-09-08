@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Code2, FileCode, CheckCircle2, Play, Eye, RotateCcw } from 'lucide-react';
+import { Code2, FileCode, CheckCircle2, Play, Eye, RotateCcw, Network } from 'lucide-react';
 import { CodeProposalTarget } from '../logic/types';
 import { autoDevApi } from '../storage/autoDevApi';
 import { dispatcher } from '../../../core/dispatcher';
 import { AutoDevDiffViewerModal } from './AutoDevDiffViewerModal';
+import { AutoDevArchitectureVisualizer } from './AutoDevArchitectureVisualizer';
 
 interface AutoDevProposalCardProps {
   proposal: {
@@ -17,6 +18,7 @@ export function AutoDevProposalCard({ proposal }: AutoDevProposalCardProps) {
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
   const [rollingBack, setRollingBack] = useState(false);
+  const [showArchMap, setShowArchMap] = useState(true);
   const [selectedDiffTarget, setSelectedDiffTarget] = useState<CodeProposalTarget | null>(null);
 
   const handleApply = async () => {
@@ -52,6 +54,13 @@ export function AutoDevProposalCard({ proposal }: AutoDevProposalCardProps) {
           <Code2 className="w-3.5 h-3.5 text-purple-700" /> Proposal Hasil Sintesis AI
         </span>
         <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setShowArchMap(!showArchMap)}
+            className="px-2 py-1 text-[9.5px] font-bold bg-purple-100 hover:bg-purple-200 text-purple-900 rounded-lg cursor-pointer flex items-center gap-1"
+          >
+            <Network className="w-3 h-3 text-purple-700" />
+            <span>{showArchMap ? 'Sembunyikan Peta' : 'Lihat Peta Layer'}</span>
+          </button>
           {applied && (
             <button
               onClick={handleRollback}
@@ -75,6 +84,8 @@ export function AutoDevProposalCard({ proposal }: AutoDevProposalCardProps) {
       </div>
 
       <p className="text-[10px] text-purple-900 font-medium">{proposal.summary}</p>
+
+      {showArchMap && <AutoDevArchitectureVisualizer targets={proposal.targets} />}
 
       <div className="flex flex-col gap-1.5 mt-1">
         {proposal.targets.map((tgt, idx) => (
