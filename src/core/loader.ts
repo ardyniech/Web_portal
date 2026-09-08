@@ -33,6 +33,11 @@ export const MODULES_REGISTRY = {
   gitSync: { name: 'Git Sync & Remote Push Module', version: '1.0.0' },
   repoRecommendation: { name: 'AI Repo Recommendation & Quick Execution Module', version: '1.0.0' },
   timeMachine: { name: 'Time Machine & Automated Rollback Module', version: '1.0.0' },
+  codeGraph: { name: 'Code Graph & AST Symbol Explorer', version: '1.0.0' },
+  blastRadius: { name: 'Blast-Radius & Impact Analyzer', version: '1.0.0' },
+  projectMemory: { name: 'Hierarchical Project Memory & ADR Index', version: '1.0.0' },
+  atomicStaging: { name: 'Atomic Multi-File Transaction Engine', version: '1.0.0' },
+  boundaryEnforcer: { name: 'Living Architectural Boundary Enforcer', version: '1.0.0' },
 };
 
 export function loadAllModules() {

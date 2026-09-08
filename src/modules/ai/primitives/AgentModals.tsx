@@ -14,6 +14,11 @@ import { ProactiveLinterModal } from '../../proactiveLinter';
 import { TaskQueueModal } from '../../agentTaskQueue';
 import { VisualizerModal } from '../../repoVisualizer';
 import { PreFlightModal } from '../../prPreFlight';
+import { CodeGraphModal } from '../../codeGraph';
+import { BlastRadiusModal } from '../../blastRadius';
+import { ProjectMemoryModal } from '../../projectMemory';
+import { AtomicStagingModal } from '../../atomicStaging';
+import { BoundaryEnforcerModal } from '../../boundaryEnforcer';
 import { LiveVoiceModal } from './LiveVoiceModal';
 
 interface AgentModalsProps {
@@ -50,6 +55,11 @@ export function AgentModals({ activeModal, setActiveModal, repoFullName, token, 
       {activeModal === 'agentTaskQueue' && <TaskQueueModal onClose={close} />}
       {activeModal === 'repoVisualizer' && <VisualizerModal onClose={close} />}
       {activeModal === 'prPreFlight' && <PreFlightModal onClose={close} />}
+      {activeModal === 'codeGraph' && <CodeGraphModal onClose={close} />}
+      {activeModal === 'blastRadius' && <BlastRadiusModal onClose={close} />}
+      {activeModal === 'projectMemory' && <ProjectMemoryModal onClose={close} />}
+      {activeModal === 'atomicStaging' && <AtomicStagingModal onClose={close} />}
+      {activeModal === 'boundaryEnforcer' && <BoundaryEnforcerModal onClose={close} />}
     </>
   );
 }
