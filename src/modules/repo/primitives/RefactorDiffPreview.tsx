@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { RefactorProposal } from '../logic/aiRefactorTypes';
 import { DiffView } from '../../diffViewer';
+import { RefactorValidationBadge } from './RefactorValidationBadge';
+import { RefactorFileTabs } from './RefactorFileTabs';
 import { Brain, CheckCircle2, TrendingDown, Sparkles } from 'lucide-react';
 
 interface RefactorDiffPreviewProps {
@@ -8,9 +10,13 @@ interface RefactorDiffPreviewProps {
 }
 
 export function RefactorDiffPreview({ proposal }: RefactorDiffPreviewProps) {
-  const change = proposal.changes[0];
-  const before = proposal.lineCountBefore || (change ? change.originalCode.split('\n').length : 0);
-  const after = proposal.lineCountAfter || (change ? change.refactoredCode.split('\n').length : 0);
+  const [activeFileIndex, setActiveFileIndex] = useState(0);
+
+  const changes = proposal.changes || [];
+  const currentChange = changes[activeFileIndex] || changes[0];
+
+  const before = proposal.lineCountBefore || (currentChange ? currentChange.originalCode.split('\n').length : 0);
+  const after = proposal.lineCountAfter || (currentChange ? currentChange.refactoredCode.split('\n').length : 0);
   const diffLines = after - before;
 
   return (
@@ -54,17 +60,29 @@ export function RefactorDiffPreview({ proposal }: RefactorDiffPreviewProps) {
         )}
       </div>
 
+      {/* Multi-File Tabs */}
+      <RefactorFileTabs
+        changes={changes}
+        activeIndex={activeFileIndex}
+        onSelect={setActiveFileIndex}
+      />
+
+      {/* AST Validation Status */}
+      {currentChange && (
+        <RefactorValidationBadge validation={currentChange.validation} />
+      )}
+
       {/* Real Code Diff */}
-      {change ? (
+      {currentChange ? (
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between text-[10px] text-zinc-600 font-medium">
-            <span>Berkas: <strong className="font-mono text-zinc-900">{change.fileName}</strong></span>
-            <span>{change.reason}</span>
+            <span>Berkas: <strong className="font-mono text-zinc-900">{currentChange.fileName}</strong></span>
+            <span>{currentChange.reason}</span>
           </div>
           <DiffView
-            fileName={change.fileName}
-            originalCode={change.originalCode}
-            modifiedCode={change.refactoredCode}
+            fileName={currentChange.fileName}
+            originalCode={currentChange.originalCode}
+            modifiedCode={currentChange.refactoredCode}
           />
         </div>
       ) : (

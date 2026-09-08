@@ -1,6 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { applyFilesToWorkspace, FileWriteItem, RefactorApplyResult } from './refactorWriter';
+
+export { applyFilesToWorkspace };
+export type { FileWriteItem, RefactorApplyResult };
 
 export interface FileCandidate {
   path: string;
@@ -58,30 +61,12 @@ export function applyRefactorToWorkspace(
   commitMessage: string,
   rootDir = process.cwd()
 ): { success: boolean; commitHash: string; message: string; lines: number } {
-  const cleanPath = path.normalize(relPath).replace(/^(\.\.[\/\\])+/, '');
-  const fullPath = path.join(rootDir, cleanPath);
-  if (!fullPath.startsWith(rootDir)) {
-    throw new Error(`Path berkas tidak valid: ${relPath}`);
-  }
-
-  fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-  fs.writeFileSync(fullPath, newContent, 'utf8');
-  const lines = newContent.split('\n').length;
-
-  let commitHash = 'local';
-  try {
-    execSync(`git add "${cleanPath}"`, { cwd: rootDir, stdio: 'pipe' });
-    const msg = commitMessage || `refactor: optimize and modularize ${path.basename(cleanPath)}`;
-    execSync(`git commit -m "${msg.replace(/"/g, '\\"')}"`, { cwd: rootDir, stdio: 'pipe' });
-    commitHash = execSync('git rev-parse --short HEAD', { cwd: rootDir, encoding: 'utf8' }).trim();
-  } catch (gitErr: any) {
-    console.warn('[Module:Refactor] Git commit skipped or working tree clean:', gitErr?.message);
-  }
-
+  const res = applyFilesToWorkspace([{ filePath: relPath, content: newContent }], commitMessage, rootDir);
   return {
-    success: true,
-    commitHash,
-    message: `Refactor berhasil diterapkan pada ${cleanPath} (${lines} baris).`,
-    lines,
+    success: res.success,
+    commitHash: res.commitHash,
+    message: res.message,
+    lines: res.totalLines,
   };
 }
+

@@ -15,6 +15,7 @@ interface RefactorTargetSelectorProps {
 
 const GOALS = [
   'Dekomposisi Modular (<125 Baris)',
+  'Pecah Jadi Sub-Komponen',
   'Strict Typing & Zero-Any',
   'SOP Error Handling & Traceability',
   'Optimasi Render & Reduksi Overhead',

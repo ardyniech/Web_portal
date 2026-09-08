@@ -5,11 +5,19 @@ export interface FileCandidate {
   priority: 'high' | 'medium' | 'normal';
 }
 
+export interface RefactorValidation {
+  isValid: boolean;
+  errors: { line: number; message: string }[];
+  warnings: string[];
+}
+
 export interface RefactorChange {
   fileName: string;
   originalCode: string;
   refactoredCode: string;
   reason: string;
+  action?: 'modify' | 'create';
+  validation?: RefactorValidation;
 }
 
 export interface RefactorProposal {
@@ -27,4 +35,3 @@ export interface RefactorProposal {
   lineCountAfter?: number;
   appliedCommitHash?: string;
 }
-

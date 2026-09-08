@@ -1,4 +1,4 @@
-import { FileCandidate, RefactorProposal } from '../logic/aiRefactorTypes';
+import { FileCandidate, RefactorProposal, RefactorValidation } from '../logic/aiRefactorTypes';
 
 export const refactorApi = {
   async fetchCandidates(): Promise<FileCandidate[]> {
@@ -20,6 +20,19 @@ export const refactorApi = {
     return data.content;
   },
 
+  async validateCode(filePath: string, code: string): Promise<RefactorValidation> {
+    try {
+      const res = await fetch('/api/refactor/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath, code }),
+      });
+      return res.ok ? await res.json() : { isValid: true, errors: [], warnings: [] };
+    } catch {
+      return { isValid: true, errors: [], warnings: [] };
+    }
+  },
+
   async analyze(options: {
     filePath: string;
     content?: string;
@@ -30,12 +43,7 @@ export const refactorApi = {
     const res = await fetch('/api/refactor/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        filePath: options.filePath,
-        content: options.content,
-        goal: options.goal,
-        commitContext: options.commitContext,
-      }),
+      body: JSON.stringify(options),
     });
 
     if (!res.ok) {
@@ -44,6 +52,19 @@ export const refactorApi = {
     }
 
     const data = await res.json();
+    const rawChanges = Array.isArray(data.fileChanges) && data.fileChanges.length > 0
+      ? data.fileChanges
+      : [{ filePath: options.filePath, refactoredCode: data.refactoredCode, originalCode: options.content || '', reason: data.reason, action: 'modify' }];
+
+    const changes = rawChanges.map((rc: any) => ({
+      fileName: rc.filePath || options.filePath,
+      originalCode: rc.originalCode !== undefined ? rc.originalCode : (rc.filePath === options.filePath ? (options.content || '') : ''),
+      refactoredCode: rc.refactoredCode,
+      reason: rc.reason || 'Dekomposisi modular',
+      action: rc.action || 'modify',
+      validation: rc.validation,
+    }));
+
     return {
       id: data.id,
       repoFullName: options.repoFullName,
@@ -52,14 +73,7 @@ export const refactorApi = {
       title: data.title,
       summary: data.summary,
       appliedMemories: data.appliedRules || [],
-      changes: [
-        {
-          fileName: options.filePath,
-          originalCode: data.changes?.[0]?.originalCode || options.content || '',
-          refactoredCode: data.refactoredCode,
-          reason: data.reason,
-        },
-      ],
+      changes,
       dependencyUpdates: data.dependencyUpdates || [],
       status: 'proposed',
       lineCountBefore: data.lineCountBefore,
@@ -67,16 +81,16 @@ export const refactorApi = {
     };
   },
 
-  async apply(filePath: string, refactoredCode: string, commitMessage: string): Promise<{
-    success: boolean;
-    commitHash: string;
-    message: string;
-    lines: number;
-  }> {
+  async apply(params: {
+    filePath?: string;
+    refactoredCode?: string;
+    files?: { filePath: string; content: string }[];
+    commitMessage: string;
+  }): Promise<{ success: boolean; commitHash: string; message: string; modifiedFiles: string[]; totalLines: number }> {
     const res = await fetch('/api/refactor/apply', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filePath, refactoredCode, commitMessage }),
+      body: JSON.stringify(params),
     });
 
     if (!res.ok) {

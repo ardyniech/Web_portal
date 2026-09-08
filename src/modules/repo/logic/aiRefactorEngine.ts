@@ -37,7 +37,6 @@ export async function generateRealRefactorProposal(options: {
   return proposal;
 }
 
-// Backwards-compatible synchronous wrapper
 export function generateRefactorProposal(repoFullName: string, commitMessage?: string): RefactorProposal {
   return {
     id: `refactor-${Date.now()}`,
@@ -64,14 +63,21 @@ export async function applyRefactorProposal(proposal: RefactorProposal): Promise
     throw new Error('Tidak ada perubahan kode yang dapat diterapkan.');
   }
 
-  const change = proposal.changes[0];
-  const commitMsg = `refactor: ${proposal.title} (${change.fileName})`;
-  const res = await refactorApi.apply(change.fileName, change.refactoredCode, commitMsg);
+  const filesToWrite = proposal.changes.map((c) => ({
+    filePath: c.fileName,
+    content: c.refactoredCode,
+  }));
+
+  const commitMsg = `refactor: ${proposal.title} (${proposal.changes.map((c) => c.fileName.split('/').pop()).join(', ')})`;
+  const res = await refactorApi.apply({
+    files: filesToWrite,
+    commitMessage: commitMsg,
+  });
 
   autoRecordRepoProgress(
     proposal.repoFullName,
     `AI Refactor Executed: ${proposal.title}`,
-    `Perubahan diterapkan pada ${change.fileName} (${res.lines} baris). Hash: ${res.commitHash}`
+    `Perubahan diterapkan pada ${res.modifiedFiles.join(', ')} (${res.totalLines} baris). Hash: ${res.commitHash}`
   );
 
   proposal.appliedCommitHash = res.commitHash;
@@ -86,9 +92,9 @@ export async function applyRefactorProposal(proposal: RefactorProposal): Promise
   dispatcher.emit('notify:push', {
     type: 'success',
     title: 'AI Refactor Berhasil Diterapkan',
-    message: `${change.fileName} berhasil diperbarui ke disk & dicatat di Git (${res.commitHash}).`,
+    message: `${res.modifiedFiles.length} berkas berhasil diperbarui ke disk & dicatat di Git (${res.commitHash}).`,
   });
 
-  devConsoleLogger.addLog('reasoning', 'AIRefactorEngine', `Refactoring sukses riil: ${change.fileName} diperbarui.`);
+  devConsoleLogger.addLog('reasoning', 'AIRefactorEngine', `Refactoring sukses riil: ${res.modifiedFiles.join(', ')}.`);
   return true;
 }

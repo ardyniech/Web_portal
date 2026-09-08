@@ -1,13 +1,9 @@
 import { generateAiContentWithFallback } from './geminiService';
+import { RefactorAiResult, RefactorFileChange } from './refactorAiTypes';
+import { generateDeterministicRefactor } from './refactorDeterministic';
+import { validateAstSyntax } from './refactorValidator';
 
-export interface RefactorAiResult {
-  title: string;
-  summary: string;
-  appliedRules: string[];
-  refactoredCode: string;
-  reason: string;
-  dependencyUpdates: { name: string; currentVersion: string; proposedVersion: string }[];
-}
+export type { RefactorAiResult, RefactorFileChange };
 
 function cleanAiOutput(text: string): string {
   let cleaned = text.trim();
@@ -17,34 +13,6 @@ function cleanAiOutput(text: string): string {
     cleaned = cleaned.replace(/^```\s*/, '').replace(/```\s*$/, '');
   }
   return cleaned.trim();
-}
-
-function generateDeterministicRefactor(filePath: string, code: string, goal: string): RefactorAiResult {
-  const lines = code.split('\n');
-  let refactored = code;
-
-  // 1. Ganti `props: any` atau `: any` ke typed interface
-  if (/props:\s*any/i.test(refactored)) {
-    refactored = `interface ComponentProps {\n  [key: string]: unknown;\n}\n\n` + refactored.replace(/props:\s*any/g, 'props: ComponentProps');
-  }
-
-  // 2. Tambahkan safe error logging jika ada catch kosong
-  if (/catch\s*\(([^)]+)\)\s*\{(?!\s*console)/.test(refactored)) {
-    refactored = refactored.replace(/catch\s*\(([^)]+)\)\s*\{/g, `catch ($1: any) {\n    console.error('[Module:Refactor] Error in execution:', $1?.message || $1);`);
-  }
-
-  return {
-    title: `Refaktor Otonom: ${filePath.split('/').pop()}`,
-    summary: `Refaktor struktural berbasis SOP: pembersihan implicit any, penguatan error logging [Module:Refactor], dan kompresi baris kode. Sasaran: ${goal}.`,
-    appliedRules: [
-      'SOP Zero Mistake Protocol: Batas file <125 baris & strict type safety',
-      'Universal Modular Cellular Architecture: Standardisasi error logging',
-      'Deteksi & eliminasi tipe data any tanpa pengaman',
-    ],
-    refactoredCode: refactored,
-    reason: `Optimalisasi kode ${filePath} untuk memastikan kepatuhan standar produksi dan keandalan runtime.`,
-    dependencyUpdates: [],
-  };
 }
 
 export async function analyzeAndRefactorCode(
@@ -60,7 +28,7 @@ Konteks Commit: ${commitContext || 'Peningkatan arsitektur & kepatuhan SOP'}
 
 Aturan Wajib (SOP):
 1. Hasil refaktor HARUS kode lengkap, siap dijalankan, tanpa "...rest of code" atau "TODO".
-2. Panjang baris file hasil refaktor diusahakan <125 baris.
+2. Panjang baris file hasil refaktor diusahakan <125 baris. Jika file terlalu panjang (>110 baris) atau tujuan dekomposisi dipilih, pecah kode menjadi berkas utama dan sub-komponen/helper baru di "fileChanges".
 3. Hindari penggunaan tipe 'any' tanpa type guard atau interface yang jelas.
 4. Tangani error dengan try/catch terstandar: console.error('[Module:<Nama>] Error in <fungsi>: <pesan>').
 5. Pertahankan API/ekspor fungsional yang sudah ada agar tidak memecah modul lain.
@@ -70,8 +38,16 @@ KEMBALIKAN HANYA JSON VALID BERIKUT (tanpa markdown tambahan):
   "title": "Judul refaktor ringkas",
   "summary": "Penjelasan ringkas bahasa Indonesia apa yang diperbaiki",
   "appliedRules": ["Daftar 2-4 aturan SOP yang diterapkan"],
-  "refactoredCode": "Kode TypeScript/TSX hasil refaktor lengkap",
+  "refactoredCode": "Kode berkas utama hasil refaktor lengkap",
   "reason": "Alasan perubahan teknis spesifik",
+  "fileChanges": [
+    {
+      "filePath": "${filePath}",
+      "refactoredCode": "Kode lengkap berkas utama",
+      "reason": "Refaktor berkas utama",
+      "action": "modify"
+    }
+  ],
   "dependencyUpdates": []
 }
 
@@ -85,6 +61,16 @@ ${originalCode}
     const jsonStr = cleanAiOutput(aiRes.text);
     const parsed = JSON.parse(jsonStr);
     if (parsed.refactoredCode) {
+      const fileChanges: RefactorFileChange[] = Array.isArray(parsed.fileChanges) && parsed.fileChanges.length > 0
+        ? parsed.fileChanges
+        : [{ filePath, refactoredCode: parsed.refactoredCode, reason: parsed.reason || 'Pembaruan berkas', action: 'modify' }];
+
+      // Run AST Validation on each file
+      for (const fc of fileChanges) {
+        fc.originalCode = fc.filePath === filePath ? originalCode : '';
+        fc.validation = validateAstSyntax(fc.filePath, fc.refactoredCode);
+      }
+
       return {
         title: parsed.title || `Refaktor AI: ${filePath.split('/').pop()}`,
         summary: parsed.summary || 'Pembaruan struktur kode berbasis AI.',
@@ -92,6 +78,7 @@ ${originalCode}
         refactoredCode: parsed.refactoredCode,
         reason: parsed.reason || 'Peningkatan kualitas dan keandalan kode.',
         dependencyUpdates: Array.isArray(parsed.dependencyUpdates) ? parsed.dependencyUpdates : [],
+        fileChanges,
       };
     }
   } catch (err: any) {
