@@ -8,6 +8,13 @@ export interface AutoDevStageResult {
   details: Record<string, any>;
 }
 
+export interface CodeProposalTarget {
+  filePath: string;
+  action: 'create' | 'edit' | 'refactor';
+  description: string;
+  codeSnippet: string;
+}
+
 export interface AutoDevPipelineRun {
   runId: string;
   taskGoal: string;
@@ -17,4 +24,9 @@ export interface AutoDevPipelineRun {
   stages: AutoDevStageResult[];
   commitHash?: string;
   tokensSavedEstimate: number;
+  aiCodeProposal?: {
+    summary: string;
+    commitMessage: string;
+    targets: CodeProposalTarget[];
+  };
 }
