@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Code2, FileCode, CheckCircle2, Play } from 'lucide-react';
+import { Code2, FileCode, CheckCircle2, Play, Eye } from 'lucide-react';
 import { CodeProposalTarget } from '../logic/types';
 import { autoDevApi } from '../storage/autoDevApi';
 import { dispatcher } from '../../../core/dispatcher';
+import { AutoDevDiffViewerModal } from './AutoDevDiffViewerModal';
 
 interface AutoDevProposalCardProps {
   proposal: {
@@ -15,6 +16,7 @@ interface AutoDevProposalCardProps {
 export function AutoDevProposalCard({ proposal }: AutoDevProposalCardProps) {
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [selectedDiffTarget, setSelectedDiffTarget] = useState<CodeProposalTarget | null>(null);
 
   const handleApply = async () => {
     setApplying(true);
@@ -39,21 +41,10 @@ export function AutoDevProposalCard({ proposal }: AutoDevProposalCardProps) {
           onClick={handleApply}
           disabled={applying || applied}
           className={`px-2.5 py-1 text-[9.5px] font-bold rounded-lg cursor-pointer flex items-center gap-1 transition-all ${
-            applied
-              ? 'bg-emerald-600 text-white'
-              : 'bg-purple-600 hover:bg-purple-700 text-white shadow-xs'
+            applied ? 'bg-emerald-600 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white shadow-xs'
           }`}
         >
-          {applied ? (
-            <>
-              <CheckCircle2 className="w-3 h-3" /> <span>Telah Diterapkan!</span>
-            </>
-          ) : (
-            <>
-              <Play className={`w-3 h-3 ${applying ? 'animate-spin' : ''}`} />
-              <span>{applying ? 'Menerapkan...' : 'Terapkan Langsung ke Kode'}</span>
-            </>
-          )}
+          {applied ? <><CheckCircle2 className="w-3 h-3" /> <span>Telah Diterapkan!</span></> : <><Play className={`w-3 h-3 ${applying ? 'animate-spin' : ''}`} /> <span>{applying ? 'Menerapkan...' : 'Terapkan Langsung'}</span></>}
         </button>
       </div>
 
@@ -66,17 +57,24 @@ export function AutoDevProposalCard({ proposal }: AutoDevProposalCardProps) {
               <span className="flex items-center gap-1 text-indigo-700">
                 <FileCode className="w-3 h-3 text-indigo-500" /> {tgt.filePath}
               </span>
-              <span className="uppercase px-1 bg-zinc-100 rounded text-zinc-600">{tgt.action}</span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setSelectedDiffTarget(tgt)}
+                  className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-[9px] font-bold cursor-pointer flex items-center gap-1"
+                >
+                  <Eye className="w-3 h-3" /> <span>Diff</span>
+                </button>
+                <span className="uppercase px-1 bg-zinc-100 rounded text-zinc-600">{tgt.action}</span>
+              </div>
             </div>
             <p className="text-[9.5px] text-zinc-600">{tgt.description}</p>
-            {tgt.codeSnippet && (
-              <pre className="p-1.5 bg-zinc-900 text-emerald-300 font-mono text-[8.5px] rounded overflow-x-auto max-h-24">
-                {tgt.codeSnippet}
-              </pre>
-            )}
           </div>
         ))}
       </div>
+
+      {selectedDiffTarget && (
+        <AutoDevDiffViewerModal target={selectedDiffTarget} onClose={() => setSelectedDiffTarget(null)} />
+      )}
     </div>
   );
 }

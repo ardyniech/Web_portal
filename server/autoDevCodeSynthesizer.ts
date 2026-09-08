@@ -1,4 +1,5 @@
 import { generateAiContentWithFallback } from './geminiService';
+import { verifyAndSelfCorrectProposal } from './autoDevSelfCorrectionService';
 import { AutoDevPipelineRun } from './autoDevTypes';
 
 export async function synthesizeAiCodeProposal(workspaceRoot: string, taskGoal: string, totalFiles: number): Promise<AutoDevPipelineRun['aiCodeProposal']> {
@@ -22,10 +23,13 @@ Kirimkan dalam format JSON valid:
     const jsonMatch = aiRes.text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
+      const targets = parsed.targets || [];
+      const { correctedTargets, autoFixesApplied } = await verifyAndSelfCorrectProposal(targets);
+
       return {
-        summary: parsed.summary || `Solusi otomatis untuk "${taskGoal}"`,
+        summary: parsed.summary + (autoFixesApplied > 0 ? ` (${autoFixesApplied} Perbaikan Sintaks Otomatis)` : ''),
         commitMessage: parsed.commitMessage || `feat(auto-dev): ${taskGoal}`,
-        targets: parsed.targets || [],
+        targets: correctedTargets,
       };
     }
   } catch (err) {
