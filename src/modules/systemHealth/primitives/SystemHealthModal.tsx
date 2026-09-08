@@ -14,33 +14,43 @@ const HealthHeader = React.memo(({ onClose }: { onClose: () => void }) => (
       <div className="p-1.5 bg-emerald-100 rounded-lg"><Activity className="w-4 h-4" /></div>
       <h3 className="text-xs font-bold">System Health</h3>
     </div>
-    <button onClick={onClose} aria-label="Close"><X className="w-4 h-4" /></button>
+    <button onClick={onClose} aria-label="Close" className="hover:bg-gray-100 p-1 rounded"><X className="w-4 h-4" /></button>
   </div>
 ));
 
 export function SystemHealthModal({ onClose }: SystemHealthModalProps) {
-  const [summary, setSummary] = useState(() => computeSystemHealthSummary());
-  const [timeSeries, setTimeSeries] = useState(() => getSystemHealthTimeSeries());
+  const [summary, setSummary] = useState(computeSystemHealthSummary);
+  const [timeSeries, setTimeSeries] = useState(getSystemHealthTimeSeries);
   const [activeTab, setActiveTab] = useState<'latency' | 'osv'>('latency');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
     try {
-      setIsRefreshing(true);
       requestAnimationFrame(() => {
-        setSummary(computeSystemHealthSummary());
-        setTimeSeries(getSystemHealthTimeSeries());
-        setIsRefreshing(false);
+        try {
+          setSummary(computeSystemHealthSummary());
+          setTimeSeries(getSystemHealthTimeSeries());
+        } catch (err) {
+          console.error('[Module:SystemHealth] Error in compute metrics:', err);
+        } finally {
+          setIsRefreshing(false);
+        }
       });
-    } catch (e) {
-      console.error('[Module:SystemHealth] Error in handleRefresh:', e);
+    } catch (err) {
+      console.error('[Module:SystemHealth] Error in handleRefresh execution:', err);
       setIsRefreshing(false);
     }
   }, []);
 
-  const content = useMemo(() => (
-    activeTab === 'osv' ? <OsvAuditPanel /> : <HealthChart data={timeSeries} metricKey="latencyMs" color="#6366f1" />
-  ), [activeTab, timeSeries]);
+  const content = useMemo(() => {
+    try {
+      return activeTab === 'osv' ? <OsvAuditPanel /> : <HealthChart data={timeSeries} metricKey="latencyMs" color="#6366f1" />;
+    } catch (err) {
+      console.error('[Module:SystemHealth] Error rendering tab content:', err);
+      return <div className="text-red-500 text-xs">Failed to load module content.</div>;
+    }
+  }, [activeTab, timeSeries]);
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
