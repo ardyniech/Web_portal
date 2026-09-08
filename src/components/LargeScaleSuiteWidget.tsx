@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { Network, AlertOctagon, BookMarked, Layers, ShieldCheck, Sparkles } from 'lucide-react';
+import { Network, AlertOctagon, BookMarked, Layers, ShieldCheck, Sparkles, Compass } from 'lucide-react';
 import { CodeGraphModal } from '../modules/codeGraph';
 import { BlastRadiusModal } from '../modules/blastRadius';
 import { ProjectMemoryModal } from '../modules/projectMemory';
 import { AtomicStagingModal } from '../modules/atomicStaging';
 import { BoundaryEnforcerModal } from '../modules/boundaryEnforcer';
 import { AutoDevModal } from '../modules/autoDev';
+import { ArchitecturalPlanModal } from '../modules/architecturalPlan';
 import { Button } from '../shared/atoms/Button';
 
 export function LargeScaleSuiteWidget() {
-  const [activeModal, setActiveModal] = useState<'graph' | 'blast' | 'memory' | 'staging' | 'boundary' | 'autodev' | null>(null);
+  const [activeModal, setActiveModal] = useState<'graph' | 'blast' | 'memory' | 'staging' | 'boundary' | 'autodev' | 'plan' | null>(null);
 
   return (
     <div className="bg-gradient-to-r from-zinc-900 via-indigo-950 to-purple-950 p-3 rounded-xl border border-indigo-900/60 text-white flex flex-col gap-2.5 shadow-lg">
@@ -20,23 +21,33 @@ export function LargeScaleSuiteWidget() {
           </div>
           <div>
             <h4 className="text-[11px] font-extrabold tracking-wide uppercase text-amber-300">
-              Large-Scale Project Suite (5 Point Infrastructure)
+              Large-Scale Project Suite & Planning Engine
             </h4>
             <p className="text-[9.5px] text-indigo-200">
-              Perangkat otomasi arsitektur, pencegahan regresi, & tombol sakti Auto Dev
+              Perencanaan arsitektur terstruktur, otomasi 5-stage, & tombol sakti Auto Dev
             </p>
           </div>
         </div>
 
-        {/* Tombol Sakti Auto Dev */}
-        <Button
-          size="sm"
-          onClick={() => setActiveModal('autodev')}
-          className="h-7 px-3 bg-gradient-to-r from-amber-400 via-orange-500 to-purple-600 hover:brightness-110 text-zinc-950 font-black text-[10.5px] rounded-lg shadow-md cursor-pointer flex items-center gap-1.5 transition-all border border-amber-300/50 shrink-0"
-        >
-          <Sparkles className="w-3.5 h-3.5 fill-zinc-950" />
-          <span>TOMBOL SAKTI AUTO DEV</span>
-        </Button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button
+            size="sm"
+            onClick={() => setActiveModal('plan')}
+            className="h-7 px-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold text-[10px] rounded-lg border border-amber-400/40 cursor-pointer flex items-center gap-1"
+          >
+            <Compass className="w-3 h-3 text-amber-300" />
+            <span>AI Planning Engine</span>
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={() => setActiveModal('autodev')}
+            className="h-7 px-3 bg-gradient-to-r from-amber-400 via-orange-500 to-purple-600 hover:brightness-110 text-zinc-950 font-black text-[10.5px] rounded-lg shadow-md cursor-pointer flex items-center gap-1.5 transition-all border border-amber-300/50"
+          >
+            <Sparkles className="w-3.5 h-3.5 fill-zinc-950" />
+            <span>TOMBOL SAKTI AUTO DEV</span>
+          </Button>
+        </div>
       </div>
 
       {/* 5 Tool Shortcuts */}
@@ -93,6 +104,7 @@ export function LargeScaleSuiteWidget() {
       </div>
 
       {/* Modals */}
+      {activeModal === 'plan' && <ArchitecturalPlanModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'autodev' && <AutoDevModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'graph' && <CodeGraphModal onClose={() => setActiveModal(null)} />}
       {activeModal === 'blast' && <BlastRadiusModal onClose={() => setActiveModal(null)} />}
