@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Eye, FileCode, CheckCircle2 } from 'lucide-react';
+import { X, Eye, FileCode } from 'lucide-react';
 import { CodeProposalTarget } from '../logic/types';
 
 interface AutoDevDiffViewerModalProps {
@@ -9,6 +9,16 @@ interface AutoDevDiffViewerModalProps {
 
 export function AutoDevDiffViewerModal({ target, onClose }: AutoDevDiffViewerModalProps) {
   const lines = target.codeSnippet ? target.codeSnippet.split('\n') : [];
+  const ext = target.filePath.split('.').pop()?.toLowerCase() || 'txt';
+
+  const langMap: Record<string, string> = {
+    ts: 'TypeScript', tsx: 'TypeScript React', js: 'JavaScript', jsx: 'JavaScript React',
+    py: 'Python', rs: 'Rust', go: 'Go', java: 'Java', kt: 'Kotlin', cpp: 'C++', c: 'C',
+    cs: 'C#', php: 'PHP', rb: 'Ruby', swift: 'Swift', dart: 'Dart/Flutter', sh: 'Shell',
+    sql: 'SQL', html: 'HTML', css: 'CSS', json: 'JSON', yaml: 'YAML', yml: 'YAML', md: 'Markdown',
+  };
+
+  const detectedLang = langMap[ext] || ext.toUpperCase();
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
@@ -17,6 +27,9 @@ export function AutoDevDiffViewerModal({ target, onClose }: AutoDevDiffViewerMod
           <div className="flex items-center gap-2">
             <Eye className="w-4 h-4 text-emerald-400" />
             <span className="font-mono font-bold text-xs">{target.filePath}</span>
+            <span className="px-1.5 py-0.5 bg-indigo-500/20 text-indigo-300 font-mono text-[9px] rounded font-bold">
+              {detectedLang}
+            </span>
             <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-300 font-mono text-[9px] rounded uppercase font-bold">
               {target.action}
             </span>
@@ -28,7 +41,7 @@ export function AutoDevDiffViewerModal({ target, onClose }: AutoDevDiffViewerMod
 
         <p className="text-[10px] text-zinc-400 font-medium">{target.description}</p>
 
-        {/* Line-by-line Diff inspection box */}
+        {/* Polyglot Line-by-line Diff inspection box */}
         <div className="flex-1 overflow-y-auto bg-black p-3 rounded-xl font-mono text-[10px] border border-zinc-800 flex flex-col gap-0.5 max-h-[360px]">
           {lines.map((line, idx) => (
             <div key={idx} className="flex items-start gap-2 text-emerald-300 hover:bg-zinc-900/60 px-1 rounded">

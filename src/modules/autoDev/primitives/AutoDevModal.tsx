@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAutoDev } from '../logic/useAutoDev';
-import { Sparkles, X, CheckCircle2, Cpu } from 'lucide-react';
+import { Sparkles, X, CheckCircle2, Cpu, Globe } from 'lucide-react';
 import { Button } from '../../../shared/atoms/Button';
 import { AutoDevProposalCard } from './AutoDevProposalCard';
 
@@ -21,9 +21,9 @@ export function AutoDevModal({ onClose }: AutoDevModalProps) {
               <Sparkles className="w-4 h-4 animate-pulse" />
             </div>
             <div>
-              <h3 className="text-xs font-bold text-zinc-900 leading-none">Auto Dev Autonomous Master Synthesizer</h3>
+              <h3 className="text-xs font-bold text-zinc-900 leading-none">Auto Dev Autonomous Polyglot Synthesizer</h3>
               <p className="text-[10px] text-zinc-500 font-medium mt-0.5">
-                Mendukung prompt umum apa saja: Sintesis Kode AI, Staging, Failover, & Penegakan Batas (&lt;125)
+                Dukungan Luas: TypeScript, Python, Rust, Go, Java, C++, PHP, SQL, Shell, &amp; 15+ Bahasa
               </p>
             </div>
           </div>
@@ -38,7 +38,7 @@ export function AutoDevModal({ onClose }: AutoDevModalProps) {
             type="text"
             value={taskGoal}
             onChange={(e) => setTaskGoal(e.target.value)}
-            placeholder="Tulis instruksi umum apa saja (cth: 'Buatkan modul auth firebase', 'Tambah dark mode', 'Refaktor api')..."
+            placeholder="Minta instruksi kode dalam bahasa apa saja (cth: 'Buat skrip python data processor', 'Buat modul Go api', 'Tambah auth ts')..."
             className="flex-1 px-3 py-1.5 text-xs bg-white border border-indigo-200 rounded-xl focus:outline-none font-medium"
           />
           <Button
@@ -47,7 +47,7 @@ export function AutoDevModal({ onClose }: AutoDevModalProps) {
             className="h-8 px-4 text-xs bg-gradient-to-r from-amber-400 via-purple-600 to-indigo-600 text-white font-black rounded-xl shadow-md cursor-pointer flex items-center gap-1.5 shrink-0"
           >
             <Sparkles className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>{loading ? 'Sintesis AI...' : 'JALANKAN AUTO DEV'}</span>
+            <span>{loading ? 'Sintesis Polyglot...' : 'JALANKAN AUTO DEV'}</span>
           </Button>
         </div>
 
@@ -56,10 +56,10 @@ export function AutoDevModal({ onClose }: AutoDevModalProps) {
           {error && <div className="p-2 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-[10px] font-bold">{error}</div>}
           {!currentRun ? (
             <div className="flex flex-col items-center justify-center p-8 bg-zinc-50 rounded-xl border border-dashed border-zinc-200 text-zinc-400 gap-1.5">
-              <Cpu className="w-6 h-6 text-indigo-500" />
-              <p className="font-bold text-zinc-700 text-xs">Dynamic AI Code Generation Engine</p>
+              <Globe className="w-6 h-6 text-indigo-500" />
+              <p className="font-bold text-zinc-700 text-xs">Polyglot Multi-Language Code Generation Engine</p>
               <p className="text-[10px] text-center max-w-md">
-                Ketik instruksi umum apa saja di atas. Auto Dev akan secara dinamis menyintesis kode TypeScript/React produksi sesuai prompt Anda.
+                Ketik instruksi umum/spesifik dalam bahasa pemrograman apa saja. Auto Dev akan menyintesis kode produksi + self-healing syntax secara otomatis.
               </p>
             </div>
           ) : (
