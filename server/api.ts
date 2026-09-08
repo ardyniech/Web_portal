@@ -11,6 +11,7 @@ import { stagingRouter } from './stagingRouter';
 import { boundaryRouter } from './boundaryRouter';
 import { autoDevRouter } from './autoDevRouter';
 import { planEngineRouter } from './planEngineRouter';
+import { modelSwitcherRouter } from './modelSwitcherRouter';
 
 export const apiRouter = Router();
 
@@ -26,6 +27,7 @@ apiRouter.use('/staging', stagingRouter);
 apiRouter.use('/boundary', boundaryRouter);
 apiRouter.use('/autodev', autoDevRouter);
 apiRouter.use('/plan', planEngineRouter);
+apiRouter.use('/models', modelSwitcherRouter);
 
 const SYSTEM_INSTRUCTION =
   'You are an elite GitHub repository AI development agent, security auditor, testing engineer, and senior software architect. ' +
