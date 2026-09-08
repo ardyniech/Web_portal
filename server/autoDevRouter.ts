@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { executeAutoDevPipeline, AutoDevPipelineRun } from './autoDevService';
+import { executeAutoDevPipeline } from './autoDevService';
+import { AutoDevPipelineRun } from './autoDevTypes';
 
 export const autoDevRouter = Router();
 
