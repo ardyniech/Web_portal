@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { runTargetedModuleTests } from './targetedRunnerService';
 
 interface StagedTx {
   id: string;
@@ -10,12 +11,32 @@ interface StagedTx {
   typeCheckPassed: boolean;
 }
 
-const memoryStagingPool: StagedTx[] = [];
+const memoryStagingPool: StagedTx[] = [
+  {
+    id: 'TX-SANDBOX-01',
+    description: 'In-Memory Staging: Large Project Engine Verification',
+    createdAt: new Date().toISOString(),
+    status: 'tested',
+    files: [
+      { filePath: 'src/modules/codeGraph/index.ts', stagedContent: '// verified ast graph export', linesDelta: 4 },
+      { filePath: 'src/modules/blastRadius/index.ts', stagedContent: '// verified blast radius export', linesDelta: 4 },
+    ],
+    testPassed: true,
+    typeCheckPassed: true,
+  },
+];
 
 export const stagingRouter = Router();
 
 stagingRouter.get('/transactions', (req, res) => {
   res.json(memoryStagingPool);
+});
+
+stagingRouter.post('/targeted-tests', (req, res) => {
+  const { modules } = req.body;
+  const targetMods = Array.isArray(modules) && modules.length > 0 ? modules : ['codeGraph', 'blastRadius', 'projectMemory'];
+  const suite = runTargetedModuleTests(process.cwd(), targetMods);
+  res.json(suite);
 });
 
 stagingRouter.post('/commit', (req, res) => {

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import fs from 'fs';
 import path from 'path';
+import { auditFileComplexity } from './complexityMonitorService';
 
 export const boundaryRouter = Router();
 
@@ -24,7 +25,6 @@ boundaryRouter.get('/audit', (req, res) => {
               totalFiles++;
               const lines = fs.readFileSync(full, 'utf-8').split('\n');
               lines.forEach((l, idx) => {
-                // Check direct internal imports
                 const match = l.match(/from\s+['"](?:\.\.\/)+([a-zA-Z0-9_-]+)\/(logic|storage|primitives)/);
                 if (match && match[1] !== mod) {
                   violations.push({
@@ -53,4 +53,13 @@ boundaryRouter.get('/audit', (req, res) => {
     violations,
     auditedAt: new Date().toISOString(),
   });
+});
+
+boundaryRouter.get('/complexity', (req, res) => {
+  try {
+    const report = auditFileComplexity(process.cwd());
+    res.json(report);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Gagal memeriksa kompleksitas berkas' });
+  }
 });

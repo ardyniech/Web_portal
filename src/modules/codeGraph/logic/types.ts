@@ -1,23 +1,12 @@
-export interface SymbolReference {
-  symbolName: string;
-  kind: 'function' | 'interface' | 'type' | 'class' | 'variable' | 'export';
-  definedIn: string;
-  references: {
-    filePath: string;
-    lineNumber: number;
-    lineContent: string;
-  }[];
-}
-
 export interface DependencyNode {
-  id: string; // e.g. "auth" or "src/modules/auth"
+  id: string;
   name: string;
   filePath: string;
   lineCount: number;
   importsCount: number;
   exportsCount: number;
-  dependencies: string[]; // module ids it imports
-  dependents: string[]; // module ids that import this
+  dependencies: string[];
+  dependents: string[];
   circularWith?: string[];
 }
 
@@ -26,6 +15,27 @@ export interface CodeGraphData {
   totalFiles: number;
   totalDependencies: number;
   circularCount: number;
-  symbols: SymbolReference[];
   updatedAt: string;
+}
+
+export interface SymbolReferenceMatch {
+  filePath: string;
+  lineNumber: number;
+  lineContent: string;
+  kind: 'declaration' | 'call' | 'import' | 'type_usage';
+}
+
+export interface SymbolReferenceResult {
+  symbolName: string;
+  totalOccurrences: number;
+  filesCount: number;
+  matches: SymbolReferenceMatch[];
+}
+
+export interface TypeDefinitionResult {
+  target: string;
+  filePath: string;
+  signatures: string[];
+  fullDefinitionText: string;
+  found: boolean;
 }

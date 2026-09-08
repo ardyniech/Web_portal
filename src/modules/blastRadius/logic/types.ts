@@ -13,8 +13,9 @@ export interface BlastRadiusResult {
   linesChanged: number;
   totalAffectedModules: number;
   overallRisk: RiskLevel;
-  blastScore: number; // 0 (safest) to 100 (catastrophic)
+  blastScore: number;
   suggestStagedMigration: boolean;
+  stagedSteps?: string[];
   affectedModules: AffectedModule[];
   potentialBreakingChanges: string[];
   analyzedAt: string;

@@ -15,3 +15,21 @@ export interface StagingTransaction {
   typeCheckPassed: boolean;
   errors?: string[];
 }
+
+export interface ModuleTestResult {
+  moduleName: string;
+  testFilePath: string;
+  status: 'passed' | 'failed' | 'skipped';
+  durationMs: number;
+  assertionsPassed: number;
+  message: string;
+}
+
+export interface IsolatedSuiteResult {
+  targetModules: string[];
+  totalExecuted: number;
+  passedCount: number;
+  failedCount: number;
+  durationTotalMs: number;
+  results: ModuleTestResult[];
+}
