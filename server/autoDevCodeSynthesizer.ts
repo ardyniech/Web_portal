@@ -1,33 +1,47 @@
 import { generateAiContentWithFallback } from './geminiService';
 import { verifyAndSelfCorrectProposal } from './autoDevSelfCorrectionService';
 import { scanRepoLanguageFingerprint } from './languageSupportService';
+import { analyzeDeepRepoContext } from './deepRepoAnalyzerService';
 import { AutoDevPipelineRun } from './autoDevTypes';
 
 export async function synthesizeAiCodeProposal(workspaceRoot: string, taskGoal: string, totalFiles: number): Promise<AutoDevPipelineRun['aiCodeProposal']> {
   try {
     const fingerprint = scanRepoLanguageFingerprint(workspaceRoot);
+    const deepRepo = analyzeDeepRepoContext(workspaceRoot);
+
     const aiPrompt = `Instruksi Pengguna: "${taskGoal}".
+${deepRepo.formattedSummary}
 Distribusi Bahasa Repositori: ${fingerprint.breakdownText}.
 
-Dukung pembuatan atau modifikasi kode dalam BAHASA PEMROGRAMAN MANAPUN (TypeScript, Python, Rust, Go, Java, C/C++, C#, PHP, Ruby, Swift, Dart, Elixir, Haskell, Vue, Svelte, Solidity, Shell, SQL, YAML, dll).
-Terapkan idiom & konvensi terbaik khas bahasa target (misal: PEP8 untuk Python, Borrowing/Ownership untuk Rust, Goroutines untuk Go, Sound Null Safety untuk Dart/Kotlin, Strict Types untuk TS/PHP).
+PENTING - PEMBANGUNAN MENDALAM & MULTI-BERKAS:
+Jangan membatasi diri hanya pada 1 atau 2 berkas!
+Berdasarkan permintaan pengguna, hasilkan modul produksi yang LENGKAP dengan arsitektur seluler multi-layer (biasanya 3 hingga 8 berkas):
+1. UI Primitives (\`src/modules/<feature>/primitives/\`)
+2. Logic / State Hook (\`src/modules/<feature>/logic/\`)
+3. Storage / API Adapter (\`src/modules/<feature>/storage/\`)
+4. Public API Exports (\`src/modules/<feature>/index.ts\`)
+5. Server Express Router / Service (bila memerlukan backend di \`server/\`)
+6. Dokumentasi Ringkas & Integrasi Modul Baru
 
-Berdasarkan konteks arsitektur (${totalFiles} berkas), buatkan proposal kode produksi yang konkret dan idiomatik.
+SOP ATURAN:
+- Setiap berkas WAJIB di bawah 125 baris.
+- Tulis kode produksi murni tanpa placeholder, TODO, atau mock buatan.
+
 Kirimkan HANYA dalam format JSON valid:
 {
-  "summary": "Ringkasan solusi teknis",
-  "commitMessage": "feat(auto-dev): deskripsi perubahan",
+  "summary": "Analisis mendalam & ringkasan arsitektur solusi",
+  "commitMessage": "feat(auto-dev): deskripsi lengkap perubahan",
   "targets": [
     {
-      "filePath": "path/ke/berkas.ext",
+      "filePath": "src/modules/namaFitur/primitives/NamaFiturModal.tsx",
       "action": "create",
-      "description": "Deskripsi perubahan, bahasa, dan pola idiomatik yang diterapkan",
-      "codeSnippet": "// Kode murni produksi idiomatik..."
+      "description": "Komponen UI murni",
+      "codeSnippet": "// Kode produksi murni..."
     }
   ]
 }`;
 
-    const systemPrompt = `You are a World-Class Polyglot Principal Software Architect with expert-level mastery in 30+ programming languages (TypeScript, Python, Rust, Go, C++, Java, Kotlin, Swift, Dart, Elixir, PHP, Ruby, Haskell, Solidity, SQL, Docker, etc.). You strictly write idiomatic, production-grade, bug-free code matching the repository's language style.`;
+    const systemPrompt = `You are a World-Class Polyglot Lead Principal Architect. You deeply analyze existing repository structures and generate full multi-layer features (3-8 complete files) matching cellular architecture guidelines (<125 lines/file, production-grade, zero placeholders).`;
 
     const aiRes = await generateAiContentWithFallback(aiPrompt, systemPrompt);
     const jsonMatch = aiRes.text.match(/\{[\s\S]*\}/);
@@ -37,13 +51,13 @@ Kirimkan HANYA dalam format JSON valid:
       const { correctedTargets, autoFixesApplied } = await verifyAndSelfCorrectProposal(targets);
 
       return {
-        summary: `${parsed.summary} [Repo: ${fingerprint.topLanguages.slice(0, 3).join('/') || 'Polyglot'}]` + (autoFixesApplied > 0 ? ` (${autoFixesApplied} Self-Fix Applied)` : ''),
+        summary: `${parsed.summary} [Deep Repo Analysis: ${deepRepo.moduleNames.length} Modul Teranalisa]` + (autoFixesApplied > 0 ? ` (${autoFixesApplied} Self-Fix Applied)` : ''),
         commitMessage: parsed.commitMessage || `feat(auto-dev): ${taskGoal}`,
         targets: correctedTargets,
       };
     }
   } catch (err) {
-    console.warn('[Module:AutoDev] Polyglot AI Code Gen fallback:', err);
+    console.warn('[Module:AutoDev] Deep Polyglot AI Code Gen fallback:', err);
   }
   return undefined;
 }
