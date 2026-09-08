@@ -1,92 +1,83 @@
-import { PreFlightState, PreFlightStatus } from './types';
-import { getStoredPreFlightState, saveStoredPreFlightState } from '../storage/preFlightStorage';
+import { PreFlightState, PreFlightIssue, PreFlightFixResult } from './types';
+import { preFlightApi } from '../storage/preFlightApi';
+import { getStoredPreFlightState, saveStoredPreFlightState, clearStoredPreFlightState } from '../storage/preFlightStorage';
 import { dispatcher } from '../../../core/dispatcher';
 import { devConsoleLogger } from '../../devConsole';
 
-export function runPreFlightAudit(): void {
-  const state = getStoredPreFlightState();
-  
-  devConsoleLogger.addLog('info', 'Pre-Flight', 'Memulai audit Pra-Push PR otonom...');
+export async function runPreFlightAudit(): Promise<PreFlightState> {
+  devConsoleLogger.addLog('info', 'Pre-Flight', 'Memulai audit Pra-Push PR tingkat tinggi...');
   dispatcher.emit('preflight:status', 'scanning');
 
-  // Simulate progress steps
-  let step = 0;
-  const interval = setInterval(() => {
-    step += 1;
-    if (step === 1) {
-      devConsoleLogger.addLog('info', 'Pre-Flight', 'Menganalisis dependensi arsitektur modular...');
-    } else if (step === 2) {
-      devConsoleLogger.addLog('info', 'Pre-Flight', 'Memindai kebocoran token sensitif dan celah keamanan...');
-    } else if (step === 3) {
-      devConsoleLogger.addLog('info', 'Pre-Flight', 'Memeriksa kestabilan try/catch pada blok asynchronous...');
-    } else if (step >= 4) {
-      clearInterval(interval);
-      
-      const updated: PreFlightState = {
-        ...state,
-        status: 'failed', // Blocked by critical issue and architectural violation
-        score: 68,
-        startedAt: new Date().toISOString(),
-      };
-      
-      saveStoredPreFlightState(updated);
-      devConsoleLogger.addLog('error', 'Pre-Flight', 'Audit Pra-Push gagal! Ditemukan 1 Pelanggaran Arsitektur dan 1 Isu Keamanan Kritis.');
-      dispatcher.emit('preflight:updated', updated);
+  try {
+    const result = await preFlightApi.runAudit();
+    saveStoredPreFlightState(result);
+
+    if (result.status === 'passed') {
+      devConsoleLogger.addLog('info', 'Pre-Flight', 'Audit Pra-Push lolos! Bebas celah keamanan & pelanggaran arsitektur.');
+    } else {
+      devConsoleLogger.addLog('warning', 'Pre-Flight', `Ditemukan ${result.issues.length} temuan: ${result.summary}`);
     }
-  }, 1200);
+
+    dispatcher.emit('preflight:updated', result);
+    return result;
+  } catch (err: any) {
+    const errMsg = err?.message || 'Galat saat memindai repositori.';
+    devConsoleLogger.addLog('error', 'Pre-Flight', `Audit gagal: ${errMsg}`);
+    const currentState = getStoredPreFlightState();
+    dispatcher.emit('preflight:updated', currentState);
+    throw err;
+  }
 }
 
-export function autoFixPreFlightIssue(issueId: string): PreFlightState {
-  const state = getStoredPreFlightState();
-  
-  // Find issue to fix
-  const issueIndex = state.issues.findIndex((i) => i.id === issueId);
-  if (issueIndex === -1) return state;
-  
-  const issue = state.issues[issueIndex];
-  devConsoleLogger.addLog('info', 'Pre-Flight', `Menerapkan auto-fix senior level untuk: ${issue.ruleName}`);
-  
-  // Remove issue
-  const remainingIssues = state.issues.filter((i) => i.id !== issueId);
-  
-  // Update file review status
-  const updatedFiles = state.filesReviewed.map((f) => {
-    if (f.filePath === issue.filePath) {
-      const remainingForFile = remainingIssues.filter((i) => i.filePath === f.filePath).length;
-      return {
-        ...f,
-        status: (remainingForFile === 0 ? 'passed' : 'warning') as 'passed' | 'failed' | 'warning',
-        issuesCount: remainingForFile,
-      };
-    }
-    return f;
-  });
-  
-  // Recalculate score
-  const hasCritical = remainingIssues.some((i) => i.severity === 'critical');
-  const hasArch = remainingIssues.some((i) => i.severity === 'architectural');
-  
-  const newStatus: PreFlightStatus = remainingIssues.length === 0 
-    ? 'passed' 
-    : (hasCritical || hasArch ? 'failed' : 'failed'); // In pre-flight, any warning/critical blocker keeps failed until fixed
-    
-  const updated: PreFlightState = {
-    ...state,
-    issues: remainingIssues,
-    filesReviewed: updatedFiles,
-    status: remainingIssues.length === 0 ? 'passed' : 'failed',
-    score: remainingIssues.length === 0 ? 100 : Math.min(95, state.score + 10),
-  };
-  
-  saveStoredPreFlightState(updated);
-  dispatcher.emit('preflight:updated', updated);
-  
-  return updated;
+export async function autoFixPreFlightIssue(issue: PreFlightIssue): Promise<{
+  fixResult: PreFlightFixResult;
+  updatedState: PreFlightState;
+}> {
+  devConsoleLogger.addLog('info', 'Pre-Flight', `Menerapkan fix nyata untuk [${issue.ruleId}] pada ${issue.filePath}...`);
+
+  try {
+    const fixResult = await preFlightApi.applyFix(issue);
+    devConsoleLogger.addLog('info', 'Pre-Flight', `Perbaikan berhasil! Commit hash: ${fixResult.commitHash}`);
+
+    // Re-run audit to get authentic new state
+    const updatedState = await runPreFlightAudit();
+
+    dispatcher.emit('git:status_updated', { commitHash: fixResult.commitHash });
+    dispatcher.emit('timeMachine:refresh', {});
+    return { fixResult, updatedState };
+  } catch (err: any) {
+    const errMsg = err?.message || 'Gagal menerapkan perbaikan.';
+    devConsoleLogger.addLog('error', 'Pre-Flight', `Perbaikan gagal: ${errMsg}`);
+    throw err;
+  }
+}
+
+export async function autoFixAllPreFlightIssues(issues: PreFlightIssue[]): Promise<{
+  appliedCount: number;
+  updatedState: PreFlightState;
+}> {
+  devConsoleLogger.addLog('info', 'Pre-Flight', `Menerapkan perbaikan massal untuk ${issues.length} isu...`);
+
+  try {
+    const result = await preFlightApi.applyFixAll(issues);
+    devConsoleLogger.addLog('info', 'Pre-Flight', `Selesai menerapkan ${result.appliedCount} perbaikan!`);
+
+    saveStoredPreFlightState(result.updatedAudit);
+    dispatcher.emit('preflight:updated', result.updatedAudit);
+    dispatcher.emit('git:status_updated', {});
+    return {
+      appliedCount: result.appliedCount,
+      updatedState: result.updatedAudit,
+    };
+  } catch (err: any) {
+    const errMsg = err?.message || 'Gagal menerapkan perbaikan massal.';
+    devConsoleLogger.addLog('error', 'Pre-Flight', `Perbaikan massal gagal: ${errMsg}`);
+    throw err;
+  }
 }
 
 export function resetPreFlightState(): PreFlightState {
-  localStorage.removeItem('agent_pr_pre_flight_state_v1');
-  const fresh = getStoredPreFlightState();
+  const fresh = clearStoredPreFlightState();
   dispatcher.emit('preflight:updated', fresh);
   return fresh;
 }
