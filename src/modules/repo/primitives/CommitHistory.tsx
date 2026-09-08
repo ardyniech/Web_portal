@@ -5,10 +5,12 @@ import { RefactorProposal } from '../logic/aiRefactorTypes';
 import { CommitTimelineItem } from './CommitTimelineItem';
 import { CommitDiffModal } from './CommitDiffModal';
 import { AiRefactorModal } from './AiRefactorModal';
+import { CommitRangeSummaryModal } from './CommitRangeSummaryModal';
+import { CommitHistoryHeaderActions } from './CommitHistoryHeaderActions';
 import { useAuth } from '../../auth';
 import { dispatcher } from '../../../core/dispatcher';
 import { Card } from '../../../shared/atoms/Card';
-import { RotateCw, Loader2, Wand2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface CommitHistoryProps {
   repoFullName: string;
@@ -21,12 +23,13 @@ export function CommitHistory({ repoFullName }: CommitHistoryProps) {
   const [error, setError] = useState('');
   const [selectedSha, setSelectedSha] = useState<string | null>(null);
   const [activeProposal, setActiveProposal] = useState<RefactorProposal | null>(null);
+  const [showRangeSummary, setShowRangeSummary] = useState(false);
 
   const loadCommits = async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await commitApi.fetchRecentCommits(repoFullName, token, 5);
+      const data = await commitApi.fetchRecentCommits(repoFullName, token, 10);
       setCommits(data);
     } catch (err: any) {
       setError(err.message || 'Gagal memuat riwayat commit.');
@@ -52,26 +55,15 @@ export function CommitHistory({ repoFullName }: CommitHistoryProps) {
     <>
       <Card
         title="Riwayat Commit"
-        subtitle="5 Commit terakhir pada repositori"
+        subtitle="Daftar commit terbaru dengan AI Range Summarizer & Refactor"
         headerAction={
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => handleTriggerRefactor()}
-              className="flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-300 px-2 py-1 rounded-md transition-colors cursor-pointer"
-              title="Cetuskan AI Refactor berbasis memori agent"
-            >
-              <Wand2 className="w-3 h-3 text-purple-600" />
-              <span>AI Refactor</span>
-            </button>
-            <button
-              onClick={loadCommits}
-              disabled={loading}
-              className="flex items-center gap-1 text-[11px] font-semibold text-zinc-500 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200 px-2 py-1 rounded-md transition-colors cursor-pointer disabled:opacity-50"
-            >
-              <RotateCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-              <span>Segarkan</span>
-            </button>
-          </div>
+          <CommitHistoryHeaderActions
+            loading={loading}
+            hasCommits={commits.length > 0}
+            onRefresh={loadCommits}
+            onOpenRangeSummary={() => setShowRangeSummary(true)}
+            onTriggerRefactor={() => handleTriggerRefactor()}
+          />
         }
       >
         {loading && commits.length === 0 ? (
@@ -109,6 +101,14 @@ export function CommitHistory({ repoFullName }: CommitHistoryProps) {
         <AiRefactorModal
           proposal={activeProposal}
           onClose={() => setActiveProposal(null)}
+        />
+      )}
+
+      {showRangeSummary && (
+        <CommitRangeSummaryModal
+          repoFullName={repoFullName}
+          commits={commits}
+          onClose={() => setShowRangeSummary(false)}
         />
       )}
     </>

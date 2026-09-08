@@ -45,7 +45,7 @@ export function SystemHealthModal({ onClose }: SystemHealthModalProps) {
 
   const content = useMemo(() => {
     try {
-      return activeTab === 'osv' ? <OsvAuditPanel /> : <HealthChart data={timeSeries} metricKey="latencyMs" color="#6366f1" />;
+      return activeTab === 'osv' ? <OsvAuditPanel /> : <HealthChart data={timeSeries} metricKey="latencyMs" color="#6366f1" unit="ms" />;
     } catch (err) {
       console.error('[Module:SystemHealth] Error rendering tab content:', err);
       return <div className="text-red-500 text-xs">Failed to load module content.</div>;
