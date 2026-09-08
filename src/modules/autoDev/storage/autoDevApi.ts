@@ -26,4 +26,14 @@ export const autoDevApi = {
     if (!res.ok) throw new Error('Gagal menerapkan usulan kode ke berkas');
     return res.json();
   },
+
+  async rollback(commitHash?: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch('/api/autodev/rollback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ commitHash }),
+    });
+    if (!res.ok) throw new Error('Gagal melakukan rollback');
+    return res.json();
+  },
 };

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { executeAutoDevPipeline } from './autoDevService';
 import { AutoDevPipelineRun } from './autoDevTypes';
 import { applyCodeProposalToWorkspace } from './proposalApplierService';
+import { rollbackWorkspaceToSnapshot } from './autoDevRollbackService';
 
 export const autoDevRouter = Router();
 
@@ -36,5 +37,16 @@ autoDevRouter.post('/apply-proposal', (req, res) => {
   } catch (err: any) {
     console.error('[Module:AutoDev] Error applying proposal:', err);
     res.status(500).json({ error: err?.message || 'Gagal menerapkan kode ke repositori' });
+  }
+});
+
+autoDevRouter.post('/rollback', (req, res) => {
+  try {
+    const { commitHash } = req.body;
+    const result = rollbackWorkspaceToSnapshot(process.cwd(), commitHash || '');
+    res.json(result);
+  } catch (err: any) {
+    console.error('[Module:AutoDev] Error during rollback:', err);
+    res.status(500).json({ error: err?.message || 'Gagal melakukan rollback' });
   }
 });

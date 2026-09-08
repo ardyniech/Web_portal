@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Code2, FileCode, CheckCircle2, Play, Eye } from 'lucide-react';
+import { Code2, FileCode, CheckCircle2, Play, Eye, RotateCcw } from 'lucide-react';
 import { CodeProposalTarget } from '../logic/types';
 import { autoDevApi } from '../storage/autoDevApi';
 import { dispatcher } from '../../../core/dispatcher';
@@ -16,6 +16,7 @@ interface AutoDevProposalCardProps {
 export function AutoDevProposalCard({ proposal }: AutoDevProposalCardProps) {
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [rollingBack, setRollingBack] = useState(false);
   const [selectedDiffTarget, setSelectedDiffTarget] = useState<CodeProposalTarget | null>(null);
 
   const handleApply = async () => {
@@ -31,21 +32,46 @@ export function AutoDevProposalCard({ proposal }: AutoDevProposalCardProps) {
     }
   };
 
+  const handleRollback = async () => {
+    setRollingBack(true);
+    try {
+      await autoDevApi.rollback();
+      setApplied(false);
+      dispatcher.emit('git:status_updated', {});
+    } catch (err) {
+      console.error('[Module:AutoDev] Error during rollback:', err);
+    } finally {
+      setRollingBack(false);
+    }
+  };
+
   return (
     <div className="p-3 bg-purple-50/80 border border-purple-200 rounded-xl flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <span className="font-bold text-purple-950 text-[11px] flex items-center gap-1.5">
           <Code2 className="w-3.5 h-3.5 text-purple-700" /> Proposal Hasil Sintesis AI
         </span>
-        <button
-          onClick={handleApply}
-          disabled={applying || applied}
-          className={`px-2.5 py-1 text-[9.5px] font-bold rounded-lg cursor-pointer flex items-center gap-1 transition-all ${
-            applied ? 'bg-emerald-600 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white shadow-xs'
-          }`}
-        >
-          {applied ? <><CheckCircle2 className="w-3 h-3" /> <span>Telah Diterapkan!</span></> : <><Play className={`w-3 h-3 ${applying ? 'animate-spin' : ''}`} /> <span>{applying ? 'Menerapkan...' : 'Terapkan Langsung'}</span></>}
-        </button>
+        <div className="flex items-center gap-1.5">
+          {applied && (
+            <button
+              onClick={handleRollback}
+              disabled={rollingBack}
+              className="px-2 py-1 text-[9.5px] font-bold bg-rose-100 hover:bg-rose-200 text-rose-800 rounded-lg cursor-pointer flex items-center gap-1"
+            >
+              <RotateCcw className={`w-3 h-3 ${rollingBack ? 'animate-spin' : ''}`} />
+              <span>{rollingBack ? 'Rollback...' : 'Undo Rollback'}</span>
+            </button>
+          )}
+          <button
+            onClick={handleApply}
+            disabled={applying || applied}
+            className={`px-2.5 py-1 text-[9.5px] font-bold rounded-lg cursor-pointer flex items-center gap-1 transition-all ${
+              applied ? 'bg-emerald-600 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white shadow-xs'
+            }`}
+          >
+            {applied ? <><CheckCircle2 className="w-3 h-3" /> <span>Telah Diterapkan</span></> : <><Play className={`w-3 h-3 ${applying ? 'animate-spin' : ''}`} /> <span>{applying ? 'Menerapkan...' : 'Terapkan Langsung'}</span></>}
+          </button>
+        </div>
       </div>
 
       <p className="text-[10px] text-purple-900 font-medium">{proposal.summary}</p>
