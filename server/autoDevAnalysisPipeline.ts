@@ -2,12 +2,13 @@ import { performHybridSearch } from './hybridSearchService';
 import { scanCodeGraph } from './codeGraphService';
 import { detectBreakingChangesInFile } from './breakingChangeDetectorService';
 import { generateArchitecturalPlan } from './planEngineService';
+import { getChangedOrCandidateFiles, scanFileStatically } from './preFlightScanner';
 import { AutoDevStageResult } from './autoDevTypes';
 
 export async function runAnalysisStages(workspaceRoot: string, taskGoal: string): Promise<{ stages: AutoDevStageResult[]; graphFileCount: number }> {
   const stages: AutoDevStageResult[] = [];
 
-  // Stage 1: Context Indexing
+  // Stage 1: Memory & ADR Context Indexing
   const t1 = Date.now();
   const adrs = performHybridSearch(workspaceRoot, taskGoal);
   stages.push({
@@ -20,7 +21,7 @@ export async function runAnalysisStages(workspaceRoot: string, taskGoal: string)
     details: { matched: adrs.map((r) => r.title) },
   });
 
-  // Stage 2: Code Graph Resolution
+  // Stage 2: Code Graph & AST Resolution
   const t2 = Date.now();
   const graph = scanCodeGraph(workspaceRoot);
   stages.push({
@@ -57,6 +58,23 @@ export async function runAnalysisStages(workspaceRoot: string, taskGoal: string)
     durationMs: Date.now() - t4,
     summary: `Blueprint: ${plan.phases.length} fase eksekusi (Risiko: ${plan.overallRisk.toUpperCase()})`,
     details: { phasesCount: plan.phases.length, risk: plan.overallRisk },
+  });
+
+  // Stage 5: Static Pre-Flight Rules & Security Audit
+  const t5 = Date.now();
+  const candidateFiles = getChangedOrCandidateFiles(workspaceRoot);
+  let issueCount = 0;
+  for (const file of candidateFiles) {
+    issueCount += scanFileStatically(file, workspaceRoot).length;
+  }
+  stages.push({
+    stageId: 5,
+    stageName: 'Pre-Flight Security & Rules Audit',
+    toolName: 'Static Pre-Flight Vulnerability Scanner',
+    status: issueCount === 0 ? 'success' : 'warning',
+    durationMs: Date.now() - t5,
+    summary: issueCount === 0 ? `0 Kerentanan/Pelanggaran pada ${candidateFiles.length} berkas sampel` : `Terdeteksi ${issueCount} isu aturan pre-flight`,
+    details: { scannedFiles: candidateFiles.length, issueCount },
   });
 
   return { stages, graphFileCount: graph.totalFiles };
