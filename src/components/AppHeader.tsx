@@ -5,6 +5,7 @@ import { AuthPanel, useAuth } from '../modules/auth';
 import { VoiceCommanderButton } from '../modules/voiceCommander';
 import { GitSyncButton } from '../modules/gitSync';
 import { TimeMachineButton } from '../modules/timeMachine';
+import { PlaygroundButton } from '../modules/playground';
 
 interface AppHeaderProps { repoFullName?: string; }
 
@@ -27,6 +28,7 @@ export function AppHeader({ repoFullName }: AppHeaderProps) {
     try {
       return (
         <div className="flex items-center gap-2.5">
+          <PlaygroundButton />
           <VoiceCommanderButton repoFullName={repoFullName} token={token} />
           <TimeMachineButton />
           <GitSyncButton defaultRepoFullName={repoFullName} authToken={token} />

@@ -38,6 +38,7 @@ export const MODULES_REGISTRY = {
   projectMemory: { name: 'Hierarchical Project Memory & ADR Index', version: '1.0.0' },
   atomicStaging: { name: 'Atomic Multi-File Transaction Engine', version: '1.0.0' },
   boundaryEnforcer: { name: 'Living Architectural Boundary Enforcer', version: '1.0.0' },
+  playground: { name: 'AI Studio Pro Prompt Playground Suite', version: '1.0.0' },
 };
 
 export function loadAllModules() {
